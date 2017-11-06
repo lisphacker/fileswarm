@@ -1,2 +1,3 @@
 # fileswarm
-Bittorrent client written in Haskell
+
+add description of fileswarm here
