@@ -17,11 +17,11 @@ module Data.Bencoding
        , decode
        , encode ) where
 
-import Protolude
---import Data.ByteString hiding (pack)
---import Data.ByteString.Char8 (pack)
+import Protolude hiding (length)
+import Data.ByteString (length)
+import Data.ByteString.Builder
 import Data.Attoparsec.ByteString.Char8 as P
-import Data.Map.Strict (fromList)
+import Data.Map.Strict (fromList, assocs)
 
 data BencElement = BencString ByteString
                  | BencInt Int64
@@ -59,8 +59,13 @@ decode bytes = case P.parseOnly parseElement bytes of
   Left err  -> Nothing
   Right val -> Just val
 
-encode :: BencElement -> ByteString
-encode element = error "Not implemented"
+encode :: BencElement -> Builder
+encode = encode'
+  where encode' (BencString s) = mconcat [intDec (length s), char7 ':', byteString s]
+        encode' (BencInt i)    = mconcat [char7 'i', int64Dec i, char7 'e']
+        encode' (BencList l)   = mconcat [char7 'l', mconcat (map encode' l), char7 'e']
+        encode' (BencDict d)   = mconcat [char7 'd', mconcat (map encodePair (assocs d)), char7 'e']
+        encodePair (k, v)      = mappend (encode' (BencString k)) (encode' v)
 
 
 
