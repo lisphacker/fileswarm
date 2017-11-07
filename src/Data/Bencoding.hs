@@ -21,7 +21,7 @@ import Protolude hiding (length)
 import Data.ByteString (length)
 import qualified Data.ByteString.Lazy as LB
 import Data.ByteString.Builder
-import Data.ByteString.Conversion (runBuilder, toByteString, toByteString')
+import Data.ByteString.Conversion (toByteString)
 import Data.Attoparsec.ByteString.Char8 as P
 import Data.Map.Strict (fromList, assocs)
 
@@ -60,7 +60,7 @@ parseElement = parseString <|> parseNumber <|> parseList <|> parseDictionary
 -- | Decode a byte-string into a BencElement
 decode :: ByteString -> Maybe BencElement
 decode bytes = case P.parseOnly parseElement bytes of
-  Left err  -> Nothing
+  Left _    -> Nothing
   Right val -> Just val
 
 -- | Encode a BencElement into a byte string
@@ -71,18 +71,3 @@ encode = LB.toStrict . toByteString . encode'
         encode' (BencList l)   = mconcat [char7 'l', mconcat (map encode' l), char7 'e']
         encode' (BencDict d)   = mconcat [char7 'd', mconcat (map encodePair (assocs d)), char7 'e']
         encodePair (k, v)      = mappend (encode' (BencString k)) (encode' v)
-
-
-
-
-
-
---------------------------------------------------------------
-
-s1 = "8:announce" :: ByteString
-
-i1 = "i-1123e" :: ByteString
-
-l1 = "l8:announcei1ee" :: ByteString
-
-d1 = "d2:oki0ee" :: ByteString
