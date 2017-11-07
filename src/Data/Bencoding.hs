@@ -10,7 +10,7 @@ Portability : POSIX
 Module for encoding and decoding data in BitTorrent's Bencoding format.
 
 -}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, NoImplicitPrelude #-}
 
 module Data.Bencoding
        ( BencElement(..)
@@ -19,14 +19,17 @@ module Data.Bencoding
 
 import Protolude hiding (length)
 import Data.ByteString (length)
+import qualified Data.ByteString.Lazy as LB
 import Data.ByteString.Builder
+import Data.ByteString.Conversion (runBuilder, toByteString, toByteString')
 import Data.Attoparsec.ByteString.Char8 as P
 import Data.Map.Strict (fromList, assocs)
 
-data BencElement = BencString ByteString
-                 | BencInt Int64
-                 | BencList [BencElement]
-                 | BencDict (Map ByteString BencElement)
+-- | Bencoding element
+data BencElement = BencString ByteString                  -- ^ ByteString
+                 | BencInt Int64                          -- ^ Integer   
+                 | BencList [BencElement]                 -- ^ List
+                 | BencDict (Map ByteString BencElement)  -- ^ Dictionary
                  deriving (Show)
 
 parseString :: Parser BencElement
@@ -54,13 +57,15 @@ parseDictionary = do
 parseElement :: Parser BencElement
 parseElement = parseString <|> parseNumber <|> parseList <|> parseDictionary
 
+-- | Decode a byte-string into a BencElement
 decode :: ByteString -> Maybe BencElement
 decode bytes = case P.parseOnly parseElement bytes of
   Left err  -> Nothing
   Right val -> Just val
 
-encode :: BencElement -> Builder
-encode = encode'
+-- | Encode a BencElement into a byte string
+encode :: BencElement -> ByteString
+encode = LB.toStrict . toByteString . encode'
   where encode' (BencString s) = mconcat [intDec (length s), char7 ':', byteString s]
         encode' (BencInt i)    = mconcat [char7 'i', int64Dec i, char7 'e']
         encode' (BencList l)   = mconcat [char7 'l', mconcat (map encode' l), char7 'e']
