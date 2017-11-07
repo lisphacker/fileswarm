@@ -1,23 +1,15 @@
 module Main where
 
 import Protolude
-import Data.Text (unpack)
 import Options.Applicative
 import Options.Applicative.Text
-import System.IO hiding (putStrLn)
-
---import BitTorrent.MetaInfo
-import BitTorrent.Bencoding
+import Data.Text (unpack)
 
 data CommandLineOptions = CommandLineOptions { torrentFile :: Text }
 
 run :: CommandLineOptions -> IO ()
 run cmdLineOpts = do
-  torrentFile <- openFile (unpack $ torrentFile cmdLineOpts) ReadMode
-  hSetBinaryMode torrentFile True
-  torrentData <- hGetContents torrentFile
-  putStrLn torrentData
-  hClose torrentFile
+  putStrLn $ "To be implemented - decode " ++ (unpack $ torrentFile cmdLineOpts) 
 
 main :: IO ()
 main = execParser opts >>= run

@@ -16,12 +16,13 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   ghc-options:         -Wall
-  exposed-modules:     BitTorrent.MetaInfo, BitTorrent.Bencoding
+  exposed-modules:     Data.Bencoding, Network.BitTorrent.MetaInfo
   other-modules:       
   build-depends:       base >= 4.7 && < 5
                      , protolude >= 0.1.6 && < 0.2
                      , bytestring
                      , attoparsec
+                     , containers
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, NoImplicitPrelude
 

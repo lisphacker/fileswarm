@@ -1,4 +1,4 @@
-module BitTorrent.MetaInfo where
+module Network.BitTorrent.MetaInfo where
 
 import Protolude
 --import Data.Maybe
