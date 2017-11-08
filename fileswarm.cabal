@@ -34,6 +34,7 @@ executable fileswarm
   build-depends:       base
                      , fileswarm
                      , protolude >= 0.1.6 && < 0.2
+                     , bytestring
                      , optparse-applicative
                      , optparse-text
                      , text

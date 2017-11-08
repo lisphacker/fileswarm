@@ -13,6 +13,7 @@ Module for encoding and decoding data in BitTorrent's Bencoding format.
 
 module Data.Bencoding
        ( BencElement(..)
+       , BencDict
        , decode
        , encode ) where
 
@@ -24,11 +25,13 @@ import Data.ByteString.Conversion (toByteString)
 import Data.Attoparsec.ByteString.Char8 as P
 import Data.Map.Strict (fromList, assocs)
 
+type BencDict = (Map ByteString BencElement)
+
 -- | Bencoding element
-data BencElement = BencString ByteString                  -- ^ ByteString
-                 | BencInt Int64                          -- ^ Integer   
-                 | BencList [BencElement]                 -- ^ List
-                 | BencDict (Map ByteString BencElement)  -- ^ Dictionary
+data BencElement = BencString ByteString  -- ^ ByteString
+                 | BencInt Int64          -- ^ Integer   
+                 | BencList [BencElement] -- ^ List
+                 | BencDict BencDict      -- ^ Dictionary
                  deriving (Show)
 
 parseString :: Parser BencElement

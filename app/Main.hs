@@ -3,13 +3,19 @@ module Main where
 import Protolude
 import Options.Applicative
 import Options.Applicative.Text
-import Data.Text (unpack)
+import qualified Data.ByteString as B
+import Data.Text (pack, unpack)
+import Data.Bencoding (decode)
 
 data CommandLineOptions = CommandLineOptions { torrentFile :: Text }
 
+
 run :: CommandLineOptions -> IO ()
 run cmdLineOpts = do
-  putStrLn $ "To be implemented - decode " ++ (unpack $ torrentFile cmdLineOpts) 
+  torrentFileContents <- (B.readFile . unpack . torrentFile) cmdLineOpts
+  case decode torrentFileContents of
+    Just bencVal -> putStrLn $ pack $ show bencVal
+    Nothing      -> return ()
 
 main :: IO ()
 main = execParser opts >>= run
