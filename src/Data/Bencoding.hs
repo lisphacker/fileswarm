@@ -10,7 +10,6 @@ Portability : POSIX
 Module for encoding and decoding data in BitTorrent's Bencoding format.
 
 -}
-{-# LANGUAGE OverloadedStrings, NoImplicitPrelude #-}
 
 module Data.Bencoding
        ( BencElement(..)
@@ -39,12 +38,10 @@ parseString = do
   BencString <$> P.take len
 
 parseNumber :: Parser BencElement
-parseNumber = do
-  BencInt <$> (P.char 'i' *> P.signed P.decimal <* P.char 'e')
+parseNumber = BencInt <$> (P.char 'i' *> P.signed P.decimal <* P.char 'e')
 
 parseList :: Parser BencElement
-parseList = do
-  BencList <$> (P.char 'l' *> P.many' parseElement <* P.char 'e')
+parseList = BencList <$> (P.char 'l' *> P.many' parseElement <* P.char 'e')
 
 parseDictionary :: Parser BencElement
 parseDictionary = do
