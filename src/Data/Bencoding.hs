@@ -14,6 +14,11 @@ Module for encoding and decoding data in BitTorrent's Bencoding format.
 module Data.Bencoding
        ( BencElement(..)
        , BencDict
+       , lookupStr
+       , lookupStrOpt
+       , lookupInt
+       , lookupIntOpt
+       , lookupDict
        , decode
        , encode ) where
 
@@ -23,8 +28,12 @@ import qualified Data.ByteString.Lazy as LB
 import Data.ByteString.Builder
 import Data.ByteString.Conversion (toByteString)
 import Data.Attoparsec.ByteString.Char8 as P
-import Data.Map.Strict (fromList, assocs)
+import Data.Map.Strict (fromList, assocs, lookup)
 
+import Data.Text (append)
+import Data.Text.Encoding (decodeUtf8)
+
+type ErrorMsg = Text
 type BencDict = (Map ByteString BencElement)
 
 -- | Bencoding element
@@ -56,6 +65,31 @@ parseDictionary = do
 
 parseElement :: Parser BencElement
 parseElement = parseString <|> parseNumber <|> parseList <|> parseDictionary
+
+lookupStr :: ByteString -> BencDict -> Either ErrorMsg ByteString
+lookupStr k dict = case lookup k dict of
+                      Just (BencString s) -> Right s
+                      _                   -> Left $ append "Unable to find string for key " (decodeUtf8 k)
+
+lookupStrOpt :: ByteString -> ByteString -> BencDict -> ByteString
+lookupStrOpt def k dict = case lookup k dict of
+                      Just (BencString s) -> s
+                      _                   -> def
+
+lookupInt :: ByteString -> BencDict -> Either ErrorMsg Int64
+lookupInt k dict = case lookup k dict of
+                      Just (BencInt i) -> Right i
+                      _                -> Left $ append "Unable to find integer for key " (decodeUtf8 k)
+
+lookupIntOpt :: Int64 -> ByteString -> BencDict -> Int64
+lookupIntOpt def k dict = case lookup k dict of
+                            Just (BencInt i) -> i
+                            _                -> def
+
+lookupDict :: ByteString -> BencDict -> Either ErrorMsg BencDict
+lookupDict k dict = case lookup k dict of
+                      Just (BencDict d) -> Right d
+                      _                 -> Left $ append "Unable to find dictionary for key " (decodeUtf8 k)
 
 -- | Decode a byte-string into a BencElement
 decode :: ByteString -> Maybe BencElement
