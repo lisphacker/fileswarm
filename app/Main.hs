@@ -6,7 +6,7 @@ import Options.Applicative.Text
 import qualified Data.ByteString as B
 import Data.Text (pack, unpack)
 import Data.Bencoding (decode)
-import qualified Network.BitTorrent.MetaInfo as MI
+import qualified Data.MetaInfo as MI
 
 data CommandLineOptions = CommandLineOptions { torrentFile :: Text }
 

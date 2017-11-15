@@ -1,5 +1,5 @@
 {-|
-Module      : Network.BitTorrent.MetaInfo
+Module      : Data.MetaInfo
 Description : Torrent metainfo
 Copyright   : (c) Gautham Ganapathy, 2017
 License     : BSD
@@ -11,7 +11,7 @@ Module for managing torrent metainfo as well as serializing/deserializing..
 
 -}
 
-module Network.BitTorrent.MetaInfo
+module Data.MetaInfo
   ( FileProp(..)
   , FileInfo(..)
   , Info(..)
@@ -19,13 +19,12 @@ module Network.BitTorrent.MetaInfo
   , decode ) where
 
 import Protolude
---import Data.Maybe
---import Text.Show
---import Data.String
---import Data.Int
+import Data.Text (pack)
 import qualified Data.Map as M
 import Data.Text.Encoding (decodeUtf8)
 import qualified Data.Bencoding as Benc
+import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
+import Data.Time.Format (formatTime, defaultTimeLocale)
 
 type ErrorMsg = Text
 
@@ -54,7 +53,7 @@ data Info = Info { pieceLength :: Int64
 data MetaInfo = MetaInfo { info         :: Info
                          , announce     :: Text
                          , announceList :: Maybe [[Text]]
-                         , creationData :: Maybe Text
+                         , creationDate :: Maybe Text
                          , comment      :: Maybe Text
                          , createdBy    :: Maybe Text
                          , encoding     :: Maybe Text
@@ -94,6 +93,13 @@ parseAnnounceList (Benc.BencList l) = map parse' l
         parse'' _ = ""
 parseAnnounceList _ = []
 
+strTime :: Int64 -> Text
+strTime = pack . formatTime defaultTimeLocale "%c" . posixSecondsToUTCTime . fromInteger . toInteger
+
+eitherToMaybe :: Either e a -> Maybe a
+eitherToMaybe (Left _) = Nothing
+eitherToMaybe (Right a) = Just a
+  
 parseMetaInfo :: Benc.BencDict -> Either ErrorMsg MetaInfo
 parseMetaInfo metaInfoDict = do
   infoDict <- Benc.lookupDict "info" metaInfoDict
@@ -102,8 +108,11 @@ parseMetaInfo metaInfoDict = do
   let annceList = case M.lookup "announce-list" metaInfoDict of
                        Just v  -> parseAnnounceList v
                        Nothing -> []
-      creationDate = Benc.lookupIntOpt 0 "creation-date"
-  return $ MetaInfo inf annce (Just annceList) Nothing Nothing Nothing Nothing
+      crDate = eitherToMaybe $ strTime <$> Benc.lookupInt "creation date" metaInfoDict
+      cmmnt = eitherToMaybe $ decodeUtf8 <$> Benc.lookupStr "comment" metaInfoDict
+      crBy = eitherToMaybe $ decodeUtf8 <$> Benc.lookupStr "created by" metaInfoDict
+      enc = eitherToMaybe $ decodeUtf8 <$> Benc.lookupStr "encoding" metaInfoDict
+  return $ MetaInfo inf annce (Just annceList) crDate cmmnt crBy enc
 
 decode :: Benc.BencElement -> Either ErrorMsg MetaInfo
 decode (Benc.BencDict metaInfoDict) = parseMetaInfo metaInfoDict
