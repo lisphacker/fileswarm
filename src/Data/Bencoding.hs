@@ -34,6 +34,8 @@ import Data.Text (append)
 import Data.Text.Encoding (decodeUtf8)
 
 type ErrorMsg = Text
+
+-- | Bencoded dictionary
 type BencDict = (Map ByteString BencElement)
 
 -- | Bencoding element
@@ -66,26 +68,31 @@ parseDictionary = do
 parseElement :: Parser BencElement
 parseElement = parseString <|> parseNumber <|> parseList <|> parseDictionary
 
+-- | Look up a string in a Bencoded dictionary, return error on failure.
 lookupStr :: ByteString -> BencDict -> Either ErrorMsg ByteString
 lookupStr k dict = case lookup k dict of
                       Just (BencString s) -> Right s
                       _                   -> Left $ append "Unable to find string for key " (decodeUtf8 k)
 
+-- | Look up a string in a Bencoded dictionary, return default value on failure.
 lookupStrOpt :: ByteString -> ByteString -> BencDict -> ByteString
 lookupStrOpt def k dict = case lookup k dict of
                       Just (BencString s) -> s
                       _                   -> def
 
+-- | Look up an integer in a Bencoded dictionary, return error on failure.
 lookupInt :: ByteString -> BencDict -> Either ErrorMsg Int64
 lookupInt k dict = case lookup k dict of
                       Just (BencInt i) -> Right i
                       _                -> Left $ append "Unable to find integer for key " (decodeUtf8 k)
 
+-- | Look up an integer in a Bencoded dictionary, return default value on failure.
 lookupIntOpt :: Int64 -> ByteString -> BencDict -> Int64
 lookupIntOpt def k dict = case lookup k dict of
                             Just (BencInt i) -> i
                             _                -> def
 
+-- | Look up an dictionary in a Bencoded dictionary, return error on failure.
 lookupDict :: ByteString -> BencDict -> Either ErrorMsg BencDict
 lookupDict k dict = case lookup k dict of
                       Just (BencDict d) -> Right d

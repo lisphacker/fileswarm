@@ -25,38 +25,43 @@ import Data.Text.Encoding (decodeUtf8)
 import qualified Data.Bencoding as Benc
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Data.Time.Format (formatTime, defaultTimeLocale)
+import qualified Data.ByteString as BS
 
 type ErrorMsg = Text
 
 type MD5Sum = ByteString
 type Size = Int64
 
-data FileProp = FileProp { length :: Size
-                         , md5sum :: Maybe MD5Sum
-                         , path   :: Maybe FilePath
+-- | File properties
+data FileProp = FileProp { filePropLength :: Size            -- ^ File size in bytes
+                         , filePropMD5Sum :: Maybe MD5Sum    -- ^ MD5 checksum for the file
+                         , filePropPath   :: Maybe FilePath  -- ^ Path to the file
                          } deriving (Show)
 
-data FileInfo = SingleFileInfo { singleFileName :: Text
-                               , singleFileProp :: FileProp
-                               } 
-              | MultiFileInfo { dirName :: Text
-                              , files :: [FileProp]
-                              } deriving (Show)
+-- | Single-/Multi-file information
+data FileInfo = SingleFileInfo { singleFileName :: Text      -- ^ File name
+                               , singleFileProp :: FileProp  -- ^ File properties
+                               }                           -- ^ Information for single file torrent
+              | MultiFileInfo { multiFileDirName :: Text              -- ^ Directory name
+                              , multiFileProps   :: [FileProp]          -- ^ Properties of files
+                              }                             -- ^ Information for multi file torrent
+                deriving (Show) 
 
-data Info = Info { pieceLength :: Int64
-                 , pieces      :: ByteString
-                 , private     :: Bool
-                 , fileInfo    :: FileInfo
+-- | Common file info
+data Info = Info { miPieceLength :: Int64         -- ^ Piece size in bytes
+                 , miPieces      :: [ByteString]  -- ^ List of SHA hashes of pieces in the torrent
+                 , miPrivate     :: Bool          -- ^ Private torrent?
+                 , miFileInfo    :: FileInfo      -- ^ Single/multi-file info
                  } deriving (Show)
                                  
-                
-data MetaInfo = MetaInfo { info         :: Info
-                         , announce     :: Text
-                         , announceList :: Maybe [[Text]]
-                         , creationDate :: Maybe Text
-                         , comment      :: Maybe Text
-                         , createdBy    :: Maybe Text
-                         , encoding     :: Maybe Text
+-- | Torrent Metainfo                
+data MetaInfo = MetaInfo { miInfo         :: Info            -- ^ Torrent info
+                         , miAnnounce     :: Text            -- ^ Announce URL
+                         , miAnnounceList :: Maybe [[Text]]  -- ^ Alternative announce URL list
+                         , miCreationDate :: Maybe Text      -- ^ Creation date
+                         , miComment      :: Maybe Text      -- ^ Comment
+                         , miCreatedBy    :: Maybe Text      -- ^ Creator
+                         , miEncoding     :: Maybe Text      -- ^ Encoding
                          } deriving (Show)
 
 parseFileProp :: Benc.BencDict -> Either ErrorMsg FileProp
@@ -74,16 +79,22 @@ parseSingleFileInfo infoDict = do
 parseMultiFileInfo :: Benc.BencDict -> Either ErrorMsg FileInfo
 parseMultiFileInfo _ = Left "Not implemented"
 
+splitByteString :: Int -> ByteString -> [ByteString]
+splitByteString n bs
+  | BS.length bs == 0 = []
+  | otherwise         = let (prefix, suffix) = BS.splitAt n bs
+                     in prefix:(splitByteString n suffix)
+                        
 parseInfo :: Benc.BencDict -> Either ErrorMsg Info
 parseInfo infoDict = do
   pieceLen <- Benc.lookupInt "piece length" infoDict
-  pcs <- Benc.lookupStr "pieces" infoDict
+  pcs <- splitByteString 20 <$> Benc.lookupStr "pieces" infoDict
   let priv = Benc.lookupIntOpt 0 "private" infoDict
   fi <- case M.lookup "files" infoDict of
           Just _  -> parseMultiFileInfo infoDict
           Nothing -> parseSingleFileInfo infoDict
 
-  return $ Info pieceLen "" {-pcs-} (priv /= 0) fi
+  return $ Info pieceLen pcs (priv /= 0) fi
 
 parseAnnounceList :: Benc.BencElement -> [[Text]]
 parseAnnounceList (Benc.BencList l) = map parse' l
@@ -114,6 +125,7 @@ parseMetaInfo metaInfoDict = do
       enc = eitherToMaybe $ decodeUtf8 <$> Benc.lookupStr "encoding" metaInfoDict
   return $ MetaInfo inf annce (Just annceList) crDate cmmnt crBy enc
 
+-- | Decodes BitTorrent metainfo from a Bencoded dictionary element.
 decode :: Benc.BencElement -> Either ErrorMsg MetaInfo
 decode (Benc.BencDict metaInfoDict) = parseMetaInfo metaInfoDict
 decode _                            = Left "meta-info dictionary expected"
