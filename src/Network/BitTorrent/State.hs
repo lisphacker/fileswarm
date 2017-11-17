@@ -15,9 +15,14 @@ module Network.BitTorrent.State where
 
 import Protolude
 
-data TrackerInfo = TrackerInfo { tiInfoHash :: ByteString
-                               } deriving (Show)
+data Tracker = Tracker { trkInfoHash :: ByteString
+                       } deriving (Show)
 
-data ClientInfo = ClientInfo { ciPeerId :: ByteString
-                             } deriving (Show)
+data Client = Client { cliPeerId :: ByteString
+                     , cliPort   :: Int
+                     } deriving (Show)
 
+
+data State = { tracker :: Tracker
+             , client  :: Client
+             } deriving (Show)
