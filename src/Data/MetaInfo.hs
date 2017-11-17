@@ -22,10 +22,12 @@ import Protolude
 import Data.Text (pack)
 import qualified Data.Map as M
 import Data.Text.Encoding (decodeUtf8)
-import qualified Data.Bencoding as Benc
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import qualified Data.ByteString as BS
+
+import qualified Data.Bencoding as Benc
+import Data.Crypto
 
 type ErrorMsg = Text
 
@@ -56,6 +58,7 @@ data Info = Info { miPieceLength :: Int64         -- ^ Piece size in bytes
                                  
 -- | Torrent Metainfo                
 data MetaInfo = MetaInfo { miInfo         :: Info            -- ^ Torrent info
+                         , miInfoHash     :: ByteString      -- ^ Hash of the info dict
                          , miAnnounce     :: Text            -- ^ Announce URL
                          , miAnnounceList :: Maybe [[Text]]  -- ^ Alternative announce URL list
                          , miCreationDate :: Maybe Text      -- ^ Creation date
@@ -114,7 +117,7 @@ eitherToMaybe (Right a) = Just a
 parseMetaInfo :: Benc.BencDict -> Either ErrorMsg MetaInfo
 parseMetaInfo metaInfoDict = do
   infoDict <- Benc.lookupDict "info" metaInfoDict
-  inf <- parseInfo infoDict
+  info <- parseInfo infoDict
   annce <- decodeUtf8 <$> Benc.lookupStr "announce" metaInfoDict
   let annceList = case M.lookup "announce-list" metaInfoDict of
                        Just v  -> parseAnnounceList v
@@ -123,7 +126,8 @@ parseMetaInfo metaInfoDict = do
       cmmnt = eitherToMaybe $ decodeUtf8 <$> Benc.lookupStr "comment" metaInfoDict
       crBy = eitherToMaybe $ decodeUtf8 <$> Benc.lookupStr "created by" metaInfoDict
       enc = eitherToMaybe $ decodeUtf8 <$> Benc.lookupStr "encoding" metaInfoDict
-  return $ MetaInfo inf annce (Just annceList) crDate cmmnt crBy enc
+      infoHash = (hashSHA1 . Benc.encode) $ Benc.BencDict infoDict
+  return $ MetaInfo info infoHash annce (Just annceList) crDate cmmnt crBy enc
 
 -- | Decodes BitTorrent metainfo from a Bencoded dictionary element.
 decode :: Benc.BencElement -> Either ErrorMsg MetaInfo

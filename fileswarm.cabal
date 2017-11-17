@@ -7,7 +7,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Gautham Ganapathy
 maintainer:          gautham@lisphacker.org
-copyright:           Gautham Ganapathy 2017
+copyright:           (c) Gautham Ganapathy, 2017
 category:            Network
 build-type:          Simple
 extra-source-files:  README.md
@@ -16,10 +16,15 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   ghc-options:         -Wall
-  exposed-modules:     Data.Bencoding, Data.MetaInfo
+  exposed-modules:     Data.Bencoding
+                     , Data.MetaInfo
+                     , Data.Crypto
+                     , Network.BitTorrent.State
+                     , Network.BitTorrent.Tracker
   other-modules:       
   build-depends:       base >= 4.7 && < 5
                      , protolude >= 0.1.6 && < 0.2
+                     , memory
                      , bytestring
                      , bytestring-conversion
                      , text
@@ -27,6 +32,8 @@ library
                      , containers
                      , time
                      , old-locale
+                     , http-conduit
+                     , cryptonite
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, NoImplicitPrelude
 

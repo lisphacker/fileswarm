@@ -2,7 +2,6 @@ module Main where
 
 import Protolude
 import Options.Applicative
-import Options.Applicative.Text
 import qualified Data.ByteString as B
 import Data.Text (pack, unpack)
 import Data.Bencoding (decode)
