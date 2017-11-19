@@ -26,11 +26,11 @@ import Protolude hiding (length)
 import Data.ByteString (length)
 import qualified Data.ByteString.Lazy as LB
 import Data.ByteString.Builder
-import Data.ByteString.Conversion (toByteString)
+import Data.ByteString.Conversion (toByteString, ToByteString)
 import Data.Attoparsec.ByteString.Char8 as P
 import Data.Map.Strict (fromList, assocs, lookup)
 
-import Data.Text (append)
+import Data.Text (pack, append)
 import Data.Text.Encoding (decodeUtf8)
 
 type ErrorMsg = Text
@@ -99,16 +99,19 @@ lookupDict k dict = case lookup k dict of
                       _                 -> Left $ append "Unable to find dictionary for key " (decodeUtf8 k)
 
 -- | Decode a byte-string into a BencElement
-decode :: ByteString -> Maybe BencElement
-decode bytes = case P.parseOnly parseElement bytes of
-  Left _    -> Nothing
-  Right val -> Just val
+decode :: ToByteString a => a -> Either ErrorMsg BencElement
+decode bytes = case P.parseOnly parseElement (bsLazyToString bytes) of
+  Left err  -> Left $ pack err
+  Right val -> Right val
 
 -- | Encode a BencElement into a byte string
 encode :: BencElement -> ByteString
-encode = LB.toStrict . toByteString . encode'
+encode = bsLazyToString . encode'
   where encode' (BencString s) = mconcat [intDec (length s), char7 ':', byteString s]
         encode' (BencInt i)    = mconcat [char7 'i', int64Dec i, char7 'e']
         encode' (BencList l)   = mconcat [char7 'l', mconcat (map encode' l), char7 'e']
         encode' (BencDict d)   = mconcat [char7 'd', mconcat (map encodePair (assocs d)), char7 'e']
         encodePair (k, v)      = mappend (encode' (BencString k)) (encode' v)
+
+bsLazyToString :: ToByteString a => a -> ByteString
+bsLazyToString = LB.toStrict . toByteString

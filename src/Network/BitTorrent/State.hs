@@ -14,6 +14,7 @@ Client / peer state
 module Network.BitTorrent.State where
 
 import Protolude
+import Data.Crypto
 
 data Tracker = Tracker { trkInfoHash :: ByteString
                        } deriving (Show)
@@ -22,7 +23,11 @@ data Client = Client { cliPeerId :: ByteString
                      , cliPort   :: Int
                      } deriving (Show)
 
+data TorrentState = TorrentState { tracker :: Tracker
+                                 , client  :: Client
+                                 } deriving (Show)
 
-data State = { tracker :: Tracker
-             , client  :: Client
-             } deriving (Show)
+newTorrentState :: Int -> IO (TorrentState)
+newTorrentState port = do
+  uuid <- makeUUID
+  return $ TorrentState (Tracker "") (Client uuid port)

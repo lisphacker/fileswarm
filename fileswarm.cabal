@@ -32,8 +32,10 @@ library
                      , containers
                      , time
                      , old-locale
+                     , http-types
                      , http-conduit
                      , cryptonite
+                     , uuid
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, NoImplicitPrelude
 
