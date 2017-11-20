@@ -11,7 +11,11 @@ Client / peer state
 
 -}
 
-module Network.BitTorrent.State where
+module Network.BitTorrent.State
+  ( Tracker(..)
+  , Client(..)
+  , TorrentState(..)
+  , newTorrentState ) where
 
 import Protolude
 import Data.Crypto

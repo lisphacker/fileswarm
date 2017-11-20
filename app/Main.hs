@@ -9,7 +9,7 @@ import Data.Crypto
 import qualified Data.Bencoding as Benc
 import qualified Data.MetaInfo as MI
 import qualified Network.BitTorrent.Tracker as Trk
-import qualified Network.BitTorrent.State
+import qualified Network.BitTorrent.State as TST
 
 data CommandLineOptions = CommandLineOptions { torrentFile :: Text
                                              , port        :: Int
@@ -19,7 +19,7 @@ data CommandLineOptions = CommandLineOptions { torrentFile :: Text
 run :: CommandLineOptions -> IO ()
 run cmdLineOpts = do
   torrentFileContents <- (B.readFile . unpack . torrentFile) cmdLineOpts
-  torrentState <- newTorrentState $ port cmdLineOpts
+  torrentState <- TST.newTorrentState $ port cmdLineOpts
   let eiMetaInfo = Benc.decode torrentFileContents >>= MI.decode
   case eiMetaInfo of
     Left err -> putStrLn ("Unable to decode metainfo" :: Text)
