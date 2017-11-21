@@ -20,23 +20,17 @@ module Network.BitTorrent.State
 import Protolude
 import Data.Crypto
 
-data Tracker = Tracker { trkAnnouneURL :: Text
-                       , trkInfoHash :: ByteString
-                       } deriving (Show)
-
-data Torrent = Torrent { trnPieceSize :: Int6
-                       } deriving (Show)
-
-data Client = Client { cliPeerId   :: ByteString
-                     , cliPort     :: Int
-                     , cliPieceDir :: Text
-                     } deriving (Show)
-
 data Piece = Piece { pcHash :: ByteString
                    , downloaded :: Int64
                    } deriving (Show)
-data TorrentState = TorrentState { tracker :: Tracker
-                                 , client  :: Client
+
+data TorrentState = TorrentState { tsAnnounceURL :: Text
+                                 , tsInfoHash    :: ByteString
+                                 , tsPieceSize   :: Int64
+                                 , tsPeerId      :: ByteString
+                                 , tsPort        :: Int
+                                 , tsPieceDir    :: Text
+                                 , pieces        :: [Piece]
                                  } deriving (Show)
 
 newTorrentState :: Int -> IO (TorrentState)
