@@ -20,7 +20,8 @@ module Data.Bencoding
        , lookupIntOpt
        , lookupDict
        , decode
-       , encode ) where
+       , encode
+       , bsLazyToStrictBS) where
 
 import Protolude hiding (length)
 import Data.ByteString (length)
@@ -100,18 +101,18 @@ lookupDict k dict = case lookup k dict of
 
 -- | Decode a byte-string into a BencElement
 decode :: ToByteString a => a -> Either ErrorMsg BencElement
-decode bytes = case P.parseOnly parseElement (bsLazyToString bytes) of
+decode bytes = case P.parseOnly parseElement (bsLazyToStrictBS bytes) of
   Left err  -> Left $ pack err
   Right val -> Right val
 
 -- | Encode a BencElement into a byte string
 encode :: BencElement -> ByteString
-encode = bsLazyToString . encode'
+encode = bsLazyToStrictBS . encode'
   where encode' (BencString s) = mconcat [intDec (length s), char7 ':', byteString s]
         encode' (BencInt i)    = mconcat [char7 'i', int64Dec i, char7 'e']
         encode' (BencList l)   = mconcat [char7 'l', mconcat (map encode' l), char7 'e']
         encode' (BencDict d)   = mconcat [char7 'd', mconcat (map encodePair (assocs d)), char7 'e']
         encodePair (k, v)      = mappend (encode' (BencString k)) (encode' v)
 
-bsLazyToString :: ToByteString a => a -> ByteString
-bsLazyToString = LB.toStrict . toByteString
+bsLazyToStrictBS :: ToByteString a => a -> ByteString
+bsLazyToStrictBS = LB.toStrict . toByteString

@@ -12,16 +12,16 @@ Client / peer state
 -}
 
 module Network.BitTorrent.State
-  ( Tracker(..)
-  , Client(..)
+  ( Piece(..)
   , TorrentState(..)
   , newTorrentState ) where
 
 import Protolude
 import Data.Crypto
+import Data.MetaInfo
 
 data Piece = Piece { pcHash :: ByteString
-                   , downloaded :: Int64
+                   , pcDownloaded :: Int64
                    } deriving (Show)
 
 data TorrentState = TorrentState { tsAnnounceURL :: Text
@@ -30,10 +30,14 @@ data TorrentState = TorrentState { tsAnnounceURL :: Text
                                  , tsPeerId      :: ByteString
                                  , tsPort        :: Int
                                  , tsPieceDir    :: Text
-                                 , pieces        :: [Piece]
+                                 , tsPieces      :: [Piece]
+                                 , tsUploaded    :: Int64
+                                 , tsDownloaded  :: Int64
+                                 , tsLeft        :: Int64
                                  } deriving (Show)
 
-newTorrentState :: Int -> IO (TorrentState)
-newTorrentState port = do
+newTorrentState :: Int -> MetaInfo -> IO (TorrentState)
+newTorrentState port mi = do
   uuid <- makeUUID
-  return $ TorrentState (Tracker "") (Client uuid port)
+  return $ TorrentState (miAnnounce mi) (miInfoHash mi) (miPieceLength $ miInfo mi) uuid port "" pieces 0 0 0
+    where pieces = fmap (\h -> Piece h 0) $ miPieces $ miInfo mi

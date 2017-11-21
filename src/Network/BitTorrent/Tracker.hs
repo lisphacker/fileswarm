@@ -33,15 +33,19 @@ buildTrackerResponse :: Benc.BencElement -> Either ErrorMsg TrackerResponse
 buildTrackerResponse (Benc.BencDict trkRespDict) = error "Not implemented"
 buildTrackerResponse _                           = Left "Tracker did not respond with a proper Bencoded dictionary"
 
-queryTracker :: TorrentState -> MetaInfo -> IO (Either ErrorMsg TrackerResponse)
-queryTracker state metainfo = do
-  let announceURL = (unpack . miAnnounce) metainfo
-  putStrLn $ "announce url = " ++ show announceURL
+queryTracker :: TorrentState -> IO (Either ErrorMsg TrackerResponse)
+queryTracker state = do
   request <- setRequestMethod "POST" <$>
-             setRequestQueryString [("info_hash", Just ((urlEncode True . miInfoHash) metainfo)),
-                                    ("peer_id", Just (urlEncode True ((cliPeerId . client) state))),
-                                    ("port", Just $ show ((cliPort . client) state))] <$>
-             parseRequest announceURL
-  response <- getResponseBody <$> httpLBS request
+             setRequestQueryString [("info_hash", Just $ urlEncode True $ tsInfoHash state),
+                                    ("peer_id", Just $ urlEncode True $ tsPeerId state),
+                                    ("port", Just $ show $ tsPort state),
+                                    ("uploaded", Just $ show $ tsUploaded state),
+                                    ("downloaded", Just $ show $ tsDownloaded state),
+                                    ("left", Just $ show $ tsLeft state),
+                                    ("compact", Just "1"),
+                                    ("event", Just "started"),
+                                    ("trackerid", Just $ tsPeerId state)] <$>
+             parseRequest ((unpack . tsAnnounceURL) state)
+  response <- Benc.bsLazyToStrictBS <$> getResponseBody <$> httpLBS request
   return $ Benc.decode response >>= buildTrackerResponse
 
