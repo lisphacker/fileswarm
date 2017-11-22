@@ -24,6 +24,7 @@ import Data.Crypto
 import qualified Data.Bencoding as Benc
 import Network.BitTorrent.State
 
+import qualified Data.ByteString as BS
 data TrackerResponse = TrackerResponse
   deriving (Show)
 
@@ -35,16 +36,18 @@ buildTrackerResponse _                           = Left "Tracker did not respond
 
 queryTracker :: TorrentState -> IO (Either ErrorMsg TrackerResponse)
 queryTracker state = do
+  putStrLn ((show $ (unpack . tsAnnounceURL) state) :: Text)
+  putStrLn (show (BS.length $ tsPeerId state) :: Text)
   request <- setRequestMethod "POST" <$>
-             setRequestQueryString [("info_hash", Just $ urlEncode True $ tsInfoHash state),
-                                    ("peer_id", Just $ urlEncode True $ tsPeerId state),
+             setRequestQueryString [("info_hash", Just $ tsInfoHash state),
+                                    ("peer_id", Just $ tsPeerId state),
                                     ("port", Just $ show $ tsPort state),
                                     ("uploaded", Just $ show $ tsUploaded state),
                                     ("downloaded", Just $ show $ tsDownloaded state),
                                     ("left", Just $ show $ tsLeft state),
                                     ("compact", Just "1"),
-                                    ("event", Just "started"),
-                                    ("trackerid", Just $ tsPeerId state)] <$>
+                                    ("event", Just "started"){-,
+                                    ("trackerid", Just $ tsPeerId state)-}] <$>
              parseRequest ((unpack . tsAnnounceURL) state)
   response <- Benc.bsLazyToStrictBS <$> getResponseBody <$> httpLBS request
   return $ Benc.decode response >>= buildTrackerResponse

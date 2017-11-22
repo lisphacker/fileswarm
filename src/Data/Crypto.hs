@@ -27,5 +27,5 @@ hashSHA1 :: ByteString -> ByteString
 hashSHA1 = convert . (hash :: ByteString -> Digest SHA1)
 
 makeUUID :: IO (UUID)
-makeUUID = getRandomBytes 16
+makeUUID = hashSHA1 <$> getRandomBytes 64 
 
