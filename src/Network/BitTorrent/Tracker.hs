@@ -36,9 +36,7 @@ buildTrackerResponse _                           = Left "Tracker did not respond
 
 queryTracker :: TorrentState -> IO (Either ErrorMsg TrackerResponse)
 queryTracker state = do
-  putStrLn ((show $ (unpack . tsAnnounceURL) state) :: Text)
-  putStrLn (show (BS.length $ tsPeerId state) :: Text)
-  request <- setRequestMethod "POST" <$>
+  request <- setRequestMethod "GET" <$>
              setRequestQueryString [("info_hash", Just $ tsInfoHash state),
                                     ("peer_id", Just $ tsPeerId state),
                                     ("port", Just $ show $ tsPort state),
@@ -51,4 +49,3 @@ queryTracker state = do
              parseRequest ((unpack . tsAnnounceURL) state)
   response <- Benc.bsLazyToStrictBS <$> getResponseBody <$> httpLBS request
   return $ Benc.decode response >>= buildTrackerResponse
-
