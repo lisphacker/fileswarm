@@ -30,11 +30,15 @@ data TrackerResponse = TrackerResponse
 
 type ErrorMsg = Text
 
+parseTrackerResponse :: Benc.BencDict -> Either ErrorMsg TrackerResponse
+parseTrackerResponse d = error "Not implemented"
+
 buildTrackerResponse :: Benc.BencElement -> Either ErrorMsg TrackerResponse
 buildTrackerResponse (Benc.BencDict trkRespDict) = parse trkRespDict
-buildTrackerResponse _                           = Left "Tracker did not respond with a proper Bencoded dictionary"
   where parse d = case Benc.lookupStr "failure reason" d of
-                    Left e -> parseTrackerResponse
+                    Left e  -> parseTrackerResponse d
+                    Right v -> Left $ show v
+buildTrackerResponse _                           = Left "Tracker did not respond with a proper Bencoded dictionary"
 
 queryTracker :: TorrentState -> IO (Either ErrorMsg TrackerResponse)
 queryTracker state = do
