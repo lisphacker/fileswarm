@@ -23,10 +23,11 @@ library
                      , Network.BitTorrent.Tracker
   other-modules:       
   build-depends:       base >= 4.7 && < 5
-                     , protolude >= 0.1.6 && < 0.2
-                     , memory
                      , bytestring
                      , bytestring-conversion
+                     , memory
+                     , network
+                     , protolude >= 0.1.6 && < 0.2
                      , text
                      , attoparsec
                      , containers

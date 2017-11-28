@@ -13,16 +13,23 @@ Client / peer state
 
 module Network.BitTorrent.State
   ( Piece(..)
+  , Peer(..)
   , TorrentState(..)
   , newTorrentState ) where
 
 import Protolude
+import Network.Socket
+
 import Data.Crypto
 import Data.MetaInfo
 
 data Piece = Piece { pcHash :: ByteString
                    , pcDownloaded :: Int64
                    } deriving (Show)
+
+data Peer = Peer { peerId   :: ByteString
+                 , peerAddr :: SockAddr
+                 } deriving (Show)
 
 data TorrentState = TorrentState { tsAnnounceURL :: Text
                                  , tsInfoHash    :: ByteString

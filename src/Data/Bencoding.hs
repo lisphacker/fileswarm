@@ -14,6 +14,7 @@ Module for encoding and decoding data in BitTorrent's Bencoding format.
 module Data.Bencoding
        ( BencElement(..)
        , BencDict
+       , lookupVal
        , lookupStr
        , lookupStrOpt
        , lookupInt
@@ -69,6 +70,12 @@ parseDictionary = do
 parseElement :: Parser BencElement
 parseElement = parseString <|> parseNumber <|> parseList <|> parseDictionary
 
+-- | Look up a value in a Bencoded dictionary, return error on failure.
+lookupVal :: ByteString -> BencDict -> Either ErrorMsg BencElement
+lookupVal k dict = case lookup k dict of
+                  Just v  -> Right v
+                  Nothing -> Left $ append "Unable to find value for key " (decodeUtf8 k)
+  
 -- | Look up a string in a Bencoded dictionary, return error on failure.
 lookupStr :: ByteString -> BencDict -> Either ErrorMsg ByteString
 lookupStr k dict = case lookup k dict of
