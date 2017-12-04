@@ -5,3 +5,9 @@ I was inspired by [Jakub Okoński](https://github.com/farnoy)'s [post on Reddit]
 I developed the code myself but have borrowed from Jakub's choice of third party libraries.
 
 This code is in a very early developmental state and is quite unusable
+
+
+## Log
+### 2017-12-04
+- Started log
+- Discovered lens! Why did I not learnn this before?!

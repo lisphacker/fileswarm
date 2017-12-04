@@ -14,7 +14,7 @@ API for querying a BitTorrent tracker
 module Network.BitTorrent.Tracker where
 
 import Protolude
-
+import Control.Lens (view)
 import Data.Text (unpack)
 import Data.Text.Encoding (decodeUtf8)
 import Data.Bits
@@ -81,15 +81,15 @@ buildTrackerResponse _                           = Left "Tracker did not respond
 queryTracker :: TorrentState -> IO (Either ErrorMsg TrackerResponse)
 queryTracker state = do
   request <- setRequestMethod "GET" <$>
-             setRequestQueryString [("info_hash", Just $ tsInfoHash state),
-                                    ("peer_id", Just $ tsPeerId state),
-                                    ("port", Just $ show $ tsPort state),
-                                    ("uploaded", Just $ show $ tsUploaded state),
-                                    ("downloaded", Just $ show $ tsDownloaded state),
-                                    ("left", Just $ show $ tsLeft state),
+             setRequestQueryString [("info_hash", Just $ view tsInfoHash state),
+                                    ("peer_id", Just $ view tsPeerId state),
+                                    ("port", Just $ show $ view tsPort state),
+                                    ("uploaded", Just $ show $ view tsUploaded state),
+                                    ("downloaded", Just $ show $ view tsDownloaded state),
+                                    ("left", Just $ show $ view tsLeft state),
                                     ("compact", Just "1"),
                                     ("event", Just "started"){-,
                                     ("trackerid", Just $ tsPeerId state)-}] <$>
-             parseRequest ((unpack . tsAnnounceURL) state)
+             parseRequest ((unpack . view tsAnnounceURL) state)
   response <- Benc.bsLazyToStrictBS <$> getResponseBody <$> httpLBS request
   return $ Benc.decode response >>= buildTrackerResponse

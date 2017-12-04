@@ -25,6 +25,7 @@ library
   build-depends:       base >= 4.7 && < 5
                      , bytestring
                      , bytestring-conversion
+                     , lens
                      , memory
                      , network
                      , protolude >= 0.1.6 && < 0.2
