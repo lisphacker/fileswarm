@@ -21,6 +21,7 @@ import Data.Bits
 import Network.HTTP.Types.URI (urlEncode)
 import Network.HTTP.Simple
 import Network.Socket
+import Control.Concurrent.STM.TVar
 
 import Data.MetaInfo
 import Data.Crypto
@@ -93,3 +94,11 @@ queryTracker state = do
              parseRequest ((unpack . view tsAnnounceURL) state)
   response <- Benc.bsLazyToStrictBS <$> getResponseBody <$> httpLBS request
   return $ Benc.decode response >>= buildTrackerResponse
+
+updateTorrentStateFromTracker :: TorrentState -> IO (TorrentState)
+updateTorrentStateFromTracker ts = do
+  etr <- queryTracker ts
+  case etr of
+    Left _   -> return ts
+    Right tr -> do atomically $ writeTVar (view tsPeers ts) (trPeers tr)
+                   return ts

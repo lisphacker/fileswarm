@@ -4,6 +4,8 @@ import Protolude
 import Options.Applicative
 import qualified Data.ByteString as B
 import Data.Text (pack, unpack)
+import Control.Lens (view)
+import Control.Concurrent.STM.TVar
 
 import Data.Crypto
 import qualified Data.Bencoding as Benc
@@ -24,8 +26,9 @@ run opts = do
     Left err -> putStrLn ("Unable to decode metainfo" :: Text)
     Right metaInfo -> do
       torrentState <- S.newTorrentState (optPort opts) metaInfo
-      tr <- Trk.queryTracker torrentState
-      putStrLn $ ((show tr) :: Text)
+      Trk.updateTorrentStateFromTracker torrentState
+      peers <- atomically $ readTVar (view S.tsPeers torrentState)
+      putStrLn $ ((show peers) :: Text)
       return ()
   return ()
   

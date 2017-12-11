@@ -8,6 +8,11 @@ This code is in a very early developmental state and is quite unusable
 
 
 ## Log
+
+### 2017-12-11
+- Output file(s) initialization
+- Beginnings of a piece to file translation layer
+
 ### 2017-12-04
 - Started log
 - Discovered lens! Why did I not learnn this before?!

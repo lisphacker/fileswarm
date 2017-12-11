@@ -41,12 +41,12 @@ data FileProp = FileProp { filePropLength :: Size            -- ^ File size in b
                          } deriving (Show)
 
 -- | Single-/Multi-file information
-data FileInfo = SingleFileInfo { singleFileName :: Text      -- ^ File name
-                               , singleFileProp :: FileProp  -- ^ File properties
-                               }                           -- ^ Information for single file torrent
-              | MultiFileInfo { multiFileDirName :: Text              -- ^ Directory name
-                              , multiFileProps   :: [FileProp]          -- ^ Properties of files
-                              }                             -- ^ Information for multi file torrent
+data FileInfo = SingleFileInfo { singleFileName :: Text        -- ^ File name
+                               , singleFileProp :: FileProp    -- ^ File properties
+                               }                               -- ^ Information for single file torrent
+              | MultiFileInfo { multiFileDirName :: FilePath   -- ^ Directory name
+                              , multiFileProps   :: [FileProp] -- ^ Properties of files
+                              }                                -- ^ Information for multi file torrent
                 deriving (Show) 
 
 -- | Common file info
