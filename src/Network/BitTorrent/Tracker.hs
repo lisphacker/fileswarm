@@ -26,7 +26,7 @@ import Control.Concurrent.STM.TVar
 import Data.MetaInfo
 import Data.Crypto
 import qualified Data.Bencoding as Benc
-import Network.BitTorrent.State
+import Network.BitTorrent.Types
 
 import qualified Data.ByteString as BS
 

@@ -10,8 +10,10 @@ import Control.Concurrent.STM.TVar
 import Data.Crypto
 import qualified Data.Bencoding as Benc
 import qualified Data.MetaInfo as MI
-import qualified Network.BitTorrent.Tracker as Trk
-import qualified Network.BitTorrent.State as S
+import Network.BitTorrent.Types
+import Network.BitTorrent.Tracker
+import Network.BitTorrent.State
+import Network.BitTorrent.FileIO
 
 data CommandLineOptions = CommandLineOptions { optTorrentFile :: Text
                                              , optPort        :: Int
@@ -25,9 +27,10 @@ run opts = do
   case eiMetaInfo of
     Left err -> putStrLn ("Unable to decode metainfo" :: Text)
     Right metaInfo -> do
-      torrentState <- S.newTorrentState (optPort opts) metaInfo
-      Trk.updateTorrentStateFromTracker torrentState
-      peers <- atomically $ readTVar (view S.tsPeers torrentState)
+      torrentState <- newTorrentState (optPort opts) metaInfo
+      updateTorrentStateFromTracker torrentState
+      checkPieces torrentState
+      peers <- atomically $ readTVar (view tsPeers torrentState)
       putStrLn $ ((show peers) :: Text)
       return ()
   return ()

@@ -22,6 +22,7 @@ library
                      , Network.BitTorrent.FileIO
                      , Network.BitTorrent.State
                      , Network.BitTorrent.Tracker
+                     , Network.BitTorrent.Types
   other-modules:       
   build-depends:       attoparsec
                      , base >= 4.7 && < 5

@@ -13,10 +13,8 @@ File I/O operations
 -}
 
 module Network.BitTorrent.FileIO
-  ( File (..)
-  , FileSection (..)
-  , IOConfig (..)
-  , initFiles ) where
+  ( initFiles
+  , checkPieces ) where
   
 
 import Protolude hiding (concat)
@@ -24,29 +22,18 @@ import System.IO
 import System.Directory
 import Data.Text (unpack)
 import Data.Maybe
+import Control.Concurrent.STM.TVar
 import qualified Data.Map.Strict as M
 
 import Data.MetaInfo
+import Network.BitTorrent.Types
 
-data File = File { fileHandle :: Handle
-                 , fileLen    :: Int64
-                 }
-
-data FileSection = FileSection { fsFile :: File
-                               , fsOffset :: Int64
-                               , fsLen    :: Int64
-                               }
-
-data IOConfig = IOConfig { _ioFiles :: [File]
-                         , _ioPiece2FileMap :: Map ByteString [FileSection]
-                         }
-                
 initFiles :: Int64 -> [ByteString] -> FileInfo -> IO (IOConfig)
 initFiles pieceSize pieces (SingleFileInfo fileName (FileProp len _ _)) = do
   file <- openTFile (unpack fileName) len
   return $ IOConfig [file] $ makePiece2FileMap file
     where makePiece2FileMap file = foldl' fn M.empty $ zip pieces [0,pieceSize..]
-            where fn m (h, o) = M.insert h [FileSection file o pieceSize] m
+            where fn m (h, o) = M.insert h (PieceInfo 0 Incomplete [FileSection file o pieceSize]) m
 initFiles pieceSize pieces (MultiFileInfo dirName fileProps) = do
   files <- mapM openDirFile fileProps
   return $ IOConfig files $ (makePiece2FileMap pieces files 0 M.empty)
@@ -54,11 +41,12 @@ initFiles pieceSize pieces (MultiFileInfo dirName fileProps) = do
           makePiece2FileMap [] _ _ m = m
           makePiece2FileMap _ [] _ m = m
           makePiece2FileMap (p:ps) ((f@(File _ len):fs)) offset m
-            | offset + pieceSize < len = makePiece2FileMap ps (f:fs) (offset + pieceSize) $ M.insertWith (++) p [FileSection f offset pieceSize] m
-            | otherwise = makePiece2FileMap (p:ps) fs (pieceSize - (len - offset)) $ M.insertWith (++) p [FileSection f offset (len - offset)] m
+            | offset + pieceSize < len = makePiece2FileMap ps (f:fs) (offset + pieceSize) $ makePI p m f offset pieceSize
+            | otherwise = makePiece2FileMap (p:ps) fs (pieceSize - (len - offset)) $ makePI p m f offset (len - offset)
+          makePI p m f off len = case M.lookup p m of
+                                   Just v  -> M.insert p (PieceInfo 0 Incomplete $ view piSections v ++ [FileSection f off len]) m
+                                   Nothing -> M.insert p (PieceInfo 0 Incomplete [FileSection f off len]) m
                       
-
-
 openTDirFile :: FilePath -> FilePath -> Int64 -> IO (File)
 openTDirFile dir fn len = do
   createDirectoryIfMissing True dir
@@ -70,3 +58,10 @@ openTFile fn len = do
   h <- openFile fn ReadWriteMode
   hSetFileSize h $ toInteger len
   return $ File h len
+
+checkPieces :: TorrentState -> IO ()
+checkPieces state = do
+  atomically $ do
+    void $ readTVar (view tsIOConfig state)
+    return ()
+  return ()
