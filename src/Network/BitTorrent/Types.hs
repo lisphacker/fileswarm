@@ -16,7 +16,12 @@ module Network.BitTorrent.Types
   ( module X
   , Peer(..)
   , File(..)
+  , fileHandle
+  , fileLen
   , FileSection(..)
+  , fsFile
+  , fsOffset
+  , fsLen
   , PieceState(..)
   , piSections
   , PieceInfo(..)

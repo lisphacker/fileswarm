@@ -24,8 +24,10 @@ import Data.Text (unpack)
 import Data.Maybe
 import Control.Concurrent.STM.TVar
 import qualified Data.Map.Strict as M
+import qualified Data.ByteString as BS
 
 import Data.MetaInfo
+import Data.Crypto
 import Network.BitTorrent.Types
 
 initFiles :: Int64 -> [ByteString] -> FileInfo -> IO (IOConfig)
@@ -62,6 +64,22 @@ openTFile fn len = do
 checkPieces :: TorrentState -> IO ()
 checkPieces state = do
   atomically $ do
-    void $ readTVar (view tsIOConfig state)
+    ioCfg <- readTVar (view tsIOConfig state)
     return ()
   return ()
+
+
+readAndVerifyPiece :: ByteString -> PieceInfo -> IO (Maybe ByteString)
+readAndVerifyPiece hash pi = do
+  bytes <- readPiece pi
+  return $ if hashSHA1 bytes == hash then Just bytes else Nothing
+
+readPiece :: PieceInfo -> IO (ByteString)
+readPiece (PieceInfo _ _ sections) = do
+  byteStrings <- mapM readSection sections
+  return $ BS.concat byteStrings
+    where readSection :: FileSection -> IO (ByteString)
+          readSection section = do
+            let handle = view (fsFile . fileHandle) section
+            hSeek handle AbsoluteSeek (toInteger $ view fsOffset section)
+            BS.hGet (view (fsFile . fileHandle) section) (fromInteger $ toInteger $ view fsLen section)

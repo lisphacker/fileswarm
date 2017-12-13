@@ -12,6 +12,7 @@ This code is in a very early developmental state and is quite unusable
 ### 2017-12-13
 - Moved types to a single file for ease of use
 - Refactored file initializing code as per type changes
+- Added piece reads from files
 
 ### 2017-12-11
 - Output file(s) initialization
