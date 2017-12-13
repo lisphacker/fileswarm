@@ -38,8 +38,12 @@ import Control.Concurrent.STM.TVar
 
 import Network.BitTorrent.FileIO
 
-data Piece = Piece { _pcHash :: ByteString
+data PieceState = Complete | Downloading | Incomplete
+  deriving (Show)
+
+data Piece = Piece { _pcHash       :: ByteString
                    , _pcDownloaded :: Int64
+                   , _pcState      :: PieceState
                    } deriving (Show)
 
 data Peer = Peer { _peerId   :: ByteString
@@ -75,4 +79,4 @@ newTorrentState port mi = do
   let info = miInfo mi
   ioCfg <- initFiles (miPieceLength info) (miPieces info) (miFileInfo info) >>= newTVarIO
   return $ TorrentState (miAnnounce mi) (miInfoHash mi) (miPieceLength info) uuid "" port peerState "" pieces 0 0 0 ioCfg
-    where pieces = fmap (\h -> Piece h 0) $ miPieces $ miInfo mi
+    where pieces = fmap (\h -> Piece h 0 Incomplete) $ miPieces $ miInfo mi
