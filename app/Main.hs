@@ -42,9 +42,9 @@ run opts = do
       putStrLn $ ((show $ fmap _piState $ M.elems $ _ioPiece2FileMap ioCfg) :: Text)
 
 
-      peerServerThread <- async (peerServerThread torrentState)
+      peerServerListenThread <- async (peerServerListenThread torrentState)
       statusThread <- async (statusThread torrentState)
-      void $ wait peerServerThread
+      void $ wait peerServerListenThread
       void $ wait statusThread
       return ()
   return ()

@@ -27,7 +27,8 @@ library
                      , Network.BitTorrent.Tracker
                      , Network.BitTorrent.Types
   other-modules:       
-  build-depends:       attoparsec
+  build-depends:       async
+                     , attoparsec
                      , base >= 4.7 && < 5
                      , bytestring
                      , bytestring-conversion

@@ -24,7 +24,7 @@ statusThread state = do
   ioCfg <- readTVarIO (_tsIOConfig state)
   let (i,d,c) = foldr countPieces (0, 0, 0) (_ioPiece2FileMap ioCfg)
   putStrLn $ ((show (i,d,c) :: Text))
-  threadDelay 5000000
+  threadDelay 1000000
   statusThread state
     where countPieces pi (i,d,c) = case _piState pi of
                                      Incomplete  -> (i + 1,d,    c)
