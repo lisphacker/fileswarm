@@ -72,6 +72,7 @@ checkPieces state = do
   let p2fmap = _ioPiece2FileMap ioCfg
   p2flist <- mapM checkPiece $ M.assocs p2fmap
   let p2fmap' = M.fromList p2flist
+  atomically $ writeTVar (_tsIOConfig state) (set ioPiece2FileMap p2fmap' ioCfg)
   return ()
     where checkPiece (hash, pi) = do
             maybeString <- readAndVerifyPiece hash pi
