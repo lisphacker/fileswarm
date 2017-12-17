@@ -5,6 +5,8 @@ import Options.Applicative
 import qualified Data.ByteString as B
 import Data.Text (pack, unpack)
 import Control.Lens (view)
+import Control.Concurrent (forkIO)
+import Control.Concurrent.Async (async, wait)
 import Control.Concurrent.STM.TVar
 import qualified Data.Map.Strict as M
 
@@ -15,6 +17,8 @@ import Network.BitTorrent.Types
 import Network.BitTorrent.Tracker
 import Network.BitTorrent.State
 import Network.BitTorrent.FileIO
+import Network.BitTorrent.PeerServer
+import Network.BitTorrent.Status
 
 data CommandLineOptions = CommandLineOptions { optTorrentFile :: Text
                                              , optPort        :: Int
@@ -31,10 +35,17 @@ run opts = do
       torrentState <- newTorrentState (optPort opts) metaInfo
       updateTorrentStateFromTracker torrentState
       checkPieces torrentState
+      
       peers <- readTVarIO (view tsPeers torrentState)
       ioCfg <- readTVarIO (view tsIOConfig torrentState)
       putStrLn $ ((show peers) :: Text)
       putStrLn $ ((show $ fmap _piState $ M.elems $ _ioPiece2FileMap ioCfg) :: Text)
+
+
+      peerServerThread <- async (peerServerThread torrentState)
+      statusThread <- async (statusThread torrentState)
+      void $ wait peerServerThread
+      void $ wait statusThread
       return ()
   return ()
   

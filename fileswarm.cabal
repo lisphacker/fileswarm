@@ -20,7 +20,10 @@ library
                      , Data.MetaInfo
                      , Data.Crypto
                      , Network.BitTorrent.FileIO
+                     , Network.BitTorrent.PeerClient
+                     , Network.BitTorrent.PeerServer
                      , Network.BitTorrent.State
+                     , Network.BitTorrent.Status
                      , Network.BitTorrent.Tracker
                      , Network.BitTorrent.Types
   other-modules:       
@@ -50,7 +53,8 @@ executable fileswarm
   hs-source-dirs:      app
   main-is:             Main.hs
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
-  build-depends:       base
+  build-depends:       async
+                     , base
                      , bytestring
                      , containers
                      , fileswarm
