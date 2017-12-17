@@ -43,18 +43,24 @@ import Network.Socket
 import Control.Concurrent.STM.TVar
 import Control.Lens as X (view, set)
 import Control.Lens hiding (element)
+import Control.Concurrent.Extra (Lock)
+import GHC.Show (Show(..))
 
 data Peer = Peer { _peerId   :: ByteString
                  , _peerAddr :: SockAddr
                  } deriving (Show)
 makeLenses ''Peer
+
+instance Show Lock where
+  show lock = "<lock>"
   
 data File = File { _fileHandle :: Handle
+                 , _fileLock   :: Lock
                  , _fileLen    :: Int64
                  } deriving (Show)
 makeLenses ''File
 
-data FileSection = FileSection { _fsFile :: File
+data FileSection = FileSection { _fsFile   :: File
                                , _fsOffset :: Int64
                                , _fsLen    :: Int64
                                } deriving (Show)
@@ -86,5 +92,5 @@ data TorrentState = TorrentState { _tsAnnounceURL :: Text
                                  , _tsDownloaded  :: Int64
                                  , _tsLeft        :: Int64
                                  , _tsIOConfig    :: TVar IOConfig
-                                 } --deriving (Show)
+                                 }
 makeLenses ''TorrentState
