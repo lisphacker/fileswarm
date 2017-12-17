@@ -68,11 +68,17 @@ openTFile fn len = do
 
 checkPieces :: TorrentState -> IO ()
 checkPieces state = do
-  atomically $ do
-    ioCfg <- readTVar (view tsIOConfig state)
-    return ()
+  ioCfg <- readTVarIO $ _tsIOConfig state
+  let p2fmap = _ioPiece2FileMap ioCfg
+  p2flist <- mapM checkPiece $ M.assocs p2fmap
+  let p2fmap' = M.fromList p2flist
   return ()
-
+    where checkPiece (hash, pi) = do
+            maybeString <- readAndVerifyPiece hash pi
+            let pi' = case maybeString of
+                        Just _  -> set piState Complete pi
+                        Nothing -> set piState Incomplete pi
+            return (hash, pi')
 
 readAndVerifyPiece :: ByteString -> PieceInfo -> IO (Maybe ByteString)
 readAndVerifyPiece hash pi = do
@@ -86,8 +92,7 @@ readPiece (PieceInfo _ _ sections) = do
     where readSection :: FileSection -> IO (ByteString)
           readSection section = do
             let h = view (fsFile . fileHandle) section
-                --l = view (fsFile . fileLock)   section
-                l = _fileLock $ view (fsFile)   section
+                l = view (fsFile . fileLock)   section
             withLock l $ do
               hSeek h AbsoluteSeek (toInteger $ view fsOffset section)
               BS.hGet (view (fsFile . fileHandle) section) (fromInteger $ toInteger $ view fsLen section)
@@ -100,8 +105,7 @@ writePiece (PieceInfo _ _ sections) piece = do
           writeSection piece section = do
             let (curr, rest) = BS.splitAt (fromInteger $ toInteger $ view fsLen section) piece
                 h = view (fsFile . fileHandle) section
-                --l = view (fsFile . fileLock)   section
-                l = _fileLock $ view (fsFile)   section
+                l = view (fsFile . fileLock)   section
             withLock l $ do
               hSeek h AbsoluteSeek (toInteger $ view fsOffset section)
               BS.hPut (view (fsFile . fileHandle) section) curr

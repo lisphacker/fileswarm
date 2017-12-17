@@ -17,6 +17,7 @@ module Network.BitTorrent.Types
   , Peer(..)
   , File(..)
   , fileHandle
+  , fileLock
   , fileLen
   , FileSection(..)
   , fsFile
@@ -25,7 +26,9 @@ module Network.BitTorrent.Types
   , PieceState(..)
   , piSections
   , PieceInfo(..)
+  , piState
   , IOConfig(..)
+  , ioPiece2FileMap
   , TorrentState(..)
   , tsAnnounceURL
   , tsInfoHash

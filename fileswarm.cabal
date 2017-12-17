@@ -52,6 +52,7 @@ executable fileswarm
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
                      , bytestring
+                     , containers
                      , fileswarm
                      , lens
                      , optparse-applicative

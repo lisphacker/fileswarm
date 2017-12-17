@@ -12,6 +12,7 @@ This code is in a very early developmental state and is quite unusable
 ### 2017-12-17
 - Added piece writes
 - Added locking around file reads/writes
+- File checksum verification at startup to identify incomplete pieces
 
 ### 2017-12-13
 - Moved types to a single file for ease of use

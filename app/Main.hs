@@ -6,6 +6,7 @@ import qualified Data.ByteString as B
 import Data.Text (pack, unpack)
 import Control.Lens (view)
 import Control.Concurrent.STM.TVar
+import qualified Data.Map.Strict as M
 
 import Data.Crypto
 import qualified Data.Bencoding as Benc
@@ -30,8 +31,10 @@ run opts = do
       torrentState <- newTorrentState (optPort opts) metaInfo
       updateTorrentStateFromTracker torrentState
       checkPieces torrentState
-      peers <- atomically $ readTVar (view tsPeers torrentState)
+      peers <- readTVarIO (view tsPeers torrentState)
+      ioCfg <- readTVarIO (view tsIOConfig torrentState)
       putStrLn $ ((show peers) :: Text)
+      putStrLn $ ((show $ fmap _piState $ M.elems $ _ioPiece2FileMap ioCfg) :: Text)
       return ()
   return ()
   
