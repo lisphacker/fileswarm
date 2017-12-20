@@ -16,7 +16,7 @@ module Data.Crypto
   , UUID
   , makeUUID) where
 
-import Protolude
+import Protolude hiding (hash)
 import Crypto.Hash
 import Crypto.Random
 import Data.ByteArray
