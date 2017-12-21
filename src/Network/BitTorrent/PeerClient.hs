@@ -24,13 +24,14 @@ import Network.BitTorrent.Types
 peerClientThread :: ByteString -> TorrentState -> IO ()
 peerClientThread hash state = do
   atomically $ do
-    ioCfg <- readTVar (_tsIOConfig state)
-    let pi = fromJust $ M.lookup hash (_ioPiece2FileMap ioCfg)
+    let ioCfg =_tsIOConfig state
+    pi <- readTVar $ fromJust $ M.lookup hash (_ioPiece2FileMap ioCfg)
     check (Incomplete == _piState pi)
-    writeTVar (_tsIOConfig state) $ (set ioPiece2FileMap (M.insert hash (set piState Downloading pi) (_ioPiece2FileMap ioCfg)) ioCfg)
+    writeTVar (fromJust $ M.lookup hash (_ioPiece2FileMap ioCfg))  $ (set piState Downloading pi)
     
-  ioCfg <- readTVarIO (_tsIOConfig state)
-  let state = _piState $ fromJust $ M.lookup hash (_ioPiece2FileMap ioCfg)
+  let ioCfg = _tsIOConfig state
+  pi <- readTVarIO $ fromJust $ M.lookup hash (_ioPiece2FileMap ioCfg)
+  let state = _piState pi
   putStrLn $ if state == Incomplete then ("Incomplete" :: Text) else ("Downloading" :: Text)
     
     
