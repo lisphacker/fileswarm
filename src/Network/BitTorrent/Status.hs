@@ -20,13 +20,13 @@ import qualified Data.Map.Strict as M
 import Network.BitTorrent.Types
 
 statusThread :: TorrentState -> IO ()
-statusThread state = do
-  ioCfg <- readTVarIO (_tsIOConfig state)
-  let (i,d,c) = foldr countPieces (0, 0, 0) (_ioPiece2FileMap ioCfg)
+statusThread state = forever $ do
+  let ioCfg = _tsIOConfig state
+  (i,d,c) <- foldM countPieces (0, 0, 0) (_ioPiece2FileMap ioCfg)
   putStrLn $ ((show (i,d,c) :: Text))
   threadDelay 1000000
-  statusThread state
-    where countPieces pi (i,d,c) = case _piState pi of
-                                     Incomplete  -> (i + 1,d,    c)
-                                     Downloading -> (i,    d + 1,c)
-                                     Complete    -> (i,    d,    c + 1)
+    where countPieces (i,d,c) tvarPI = do pi <- readTVarIO tvarPI
+                                          return $ case _piState pi of
+                                                     Incomplete  -> (i + 1,d,    c)
+                                                     Downloading -> (i,    d + 1,c)
+                                                     Complete    -> (i,    d,    c + 1)
