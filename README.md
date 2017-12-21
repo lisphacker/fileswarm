@@ -9,6 +9,10 @@ This code is in a very early developmental state and is quite unusable
 
 ## Log
 
+### 2017-12-21
+- Added dummy piece client.
+- Need to fix locks. STM is not useful for locks connected to IO
+
 ### 2017-12-17
 - Added piece writes
 - Added locking around file reads/writes

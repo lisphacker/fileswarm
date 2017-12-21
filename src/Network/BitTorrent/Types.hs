@@ -70,7 +70,7 @@ data FileSection = FileSection { _fsFile   :: File
 makeLenses ''FileSection
 
 data PieceState = Incomplete | Downloading | Complete
-  deriving (Show)
+  deriving (Eq, Show)
 
 data PieceInfo = PieceInfo { _piDownloaded :: Int64
                            , _piState      :: PieceState
