@@ -63,10 +63,11 @@ main = execParser opts >>= run
 
 spawnPeerClientThreads :: TorrentState -> IO ()
 spawnPeerClientThreads state = do
-  ioCfg <- readTVarIO (_tsIOConfig state)
+  let ioCfg = _tsIOConfig state
   let h = fromJust $ head $ M.keys $ _ioPiece2FileMap ioCfg
   forM_ ((M.assocs . _ioPiece2FileMap) ioCfg) $ spawnPeerClientThread h
-    where spawnPeerClientThread h (hash, pi) = case _piState pi of
-                                               Incomplete -> void $ async (peerClientThread hash state)
-                                               _          -> return ()
+    where spawnPeerClientThread h (hash, tvarPI) = do pi <- readTVarIO tvarPI
+                                                      return $ case _piState pi of
+                                                        Incomplete -> void $ async (peerClientThread hash state)
+                                                        _          -> return ()
     
