@@ -79,8 +79,8 @@ data PieceInfo = PieceInfo { _piDownloaded :: Int64
 makeLenses ''PieceInfo
 
 data IOConfig = IOConfig { _ioFiles :: [File]
-                         , _ioPiece2FileMap :: Map ByteString PieceInfo
-                         } deriving (Show)
+                         , _ioPiece2FileMap :: Map ByteString (TVar PieceInfo)
+                         } 
 makeLenses ''IOConfig
 
 data TorrentState = TorrentState { _tsAnnounceURL :: Text
@@ -94,6 +94,6 @@ data TorrentState = TorrentState { _tsAnnounceURL :: Text
                                  , _tsUploaded    :: Int64
                                  , _tsDownloaded  :: Int64
                                  , _tsLeft        :: Int64
-                                 , _tsIOConfig    :: TVar IOConfig
+                                 , _tsIOConfig    :: IOConfig
                                  }
 makeLenses ''TorrentState

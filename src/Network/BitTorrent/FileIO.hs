@@ -20,7 +20,7 @@ module Network.BitTorrent.FileIO
   , writePiece) where
   
 
-import Protolude hiding (concat)
+import Protolude hiding (concat, pi)
 import System.IO
 import System.Directory
 import Data.Text (unpack)
@@ -37,21 +37,34 @@ import Network.BitTorrent.Types
 initFiles :: Int64 -> [ByteString] -> FileInfo -> IO (IOConfig)
 initFiles pieceSize pieces (SingleFileInfo fileName (FileProp len _ _)) = do
   file <- openTFile (unpack fileName) len
-  return $ IOConfig [file] $ makePiece2FileMap file
-    where makePiece2FileMap file = foldl' fn M.empty $ zip pieces [0,pieceSize..]
-            where fn m (h, o) = M.insert h (PieceInfo 0 Incomplete [FileSection file o pieceSize]) m
+  m <- makePiece2FileMap file
+  return $ IOConfig [file] m
+    where makePiece2FileMap file = foldlM fn M.empty $ zip pieces [0,pieceSize..]
+            where fn m (h, o) = do tvarPI <- (mkpi o)
+                                   return $ M.insert h tvarPI  m
+                  mkpi o = newTVarIO $ (PieceInfo 0 Incomplete [FileSection file o pieceSize])
 initFiles pieceSize pieces (MultiFileInfo dirName fileProps) = do
   files <- mapM openDirFile fileProps
-  return $ IOConfig files $ (makePiece2FileMap pieces files 0 M.empty)
+  m <- makePiece2FileMap pieces files 0 M.empty
+  return $ IOConfig files $ m
     where openDirFile (FileProp len _ fileName) = openTDirFile dirName (fromJust fileName) len
-          makePiece2FileMap [] _ _ m = m
-          makePiece2FileMap _ [] _ m = m
+          makePiece2FileMap :: [ByteString] -> [File] -> Int64 -> Map ByteString (TVar PieceInfo) -> IO (Map ByteString (TVar PieceInfo))
+          makePiece2FileMap [] _ _ m = pure m
+          makePiece2FileMap _ [] _ m = pure m
           makePiece2FileMap (p:ps) ((f@(File _ _ len):fs)) offset m
-            | offset + pieceSize < len = makePiece2FileMap ps (f:fs) (offset + pieceSize) $ makePI p m f offset pieceSize
-            | otherwise = makePiece2FileMap (p:ps) fs (pieceSize - (len - offset)) $ makePI p m f offset (len - offset)
-          makePI p m f off len = case M.lookup p m of
-                                   Just v  -> M.insert p (PieceInfo 0 Incomplete $ view piSections v ++ [FileSection f off len]) m
-                                   Nothing -> M.insert p (PieceInfo 0 Incomplete [FileSection f off len]) m
+            | offset + pieceSize < len = do m' <- insertPI p m f offset pieceSize
+                                            makePiece2FileMap ps (f:fs) (offset + pieceSize) m'
+            | otherwise                = do m' <- insertPI p m f offset (len - offset)
+                                            makePiece2FileMap (p:ps) fs (pieceSize - (len - offset)) m'
+          insertPI :: ByteString -> Map ByteString (TVar PieceInfo) -> File -> Int64 -> Int64 -> IO (Map ByteString (TVar PieceInfo))
+          insertPI p m f off len = case M.lookup p m of
+                                     Just v  -> do v' <- readTVarIO v
+                                                   tvarPI <- mkpiV f off len v'
+                                                   return $ M.insert p tvarPI m
+                                     Nothing -> do tvarPI <- mkpi_ f off len
+                                                   return $ M.insert p tvarPI m
+          mkpiV f off len v = newTVarIO $ (PieceInfo 0 Incomplete $ view piSections v ++ [FileSection f off len])
+          mkpi_ f off len   = newTVarIO $ (PieceInfo 0 Incomplete [FileSection f off len])
                       
 openTDirFile :: FilePath -> FilePath -> Int64 -> IO (File)
 openTDirFile dir fn len = do
@@ -68,18 +81,18 @@ openTFile fn len = do
 
 checkPieces :: TorrentState -> IO ()
 checkPieces state = do
-  ioCfg <- readTVarIO $ _tsIOConfig state
+  let ioCfg = _tsIOConfig state
   let p2fmap = _ioPiece2FileMap ioCfg
-  p2flist <- mapM checkPiece $ M.assocs p2fmap
-  let p2fmap' = M.fromList p2flist
-  atomically $ writeTVar (_tsIOConfig state) (set ioPiece2FileMap p2fmap' ioCfg)
-  return ()
-    where checkPiece (hash, pi) = do
+  forM_ (M.assocs p2fmap) checkPiece
+    where checkPiece :: (ByteString, TVar PieceInfo) -> IO (ByteString, TVar PieceInfo)
+          checkPiece (hash, tvarPI) = do
+            pi <- readTVarIO tvarPI
             maybeString <- readAndVerifyPiece hash pi
-            let pi' = case maybeString of
-                        Just _  -> set piState Complete pi
-                        Nothing -> set piState Incomplete pi
-            return (hash, pi')
+            void $ return $ case maybeString of
+                              Just _  -> modifyTVar' tvarPI (set piState Complete)
+                              Nothing -> modifyTVar' tvarPI (set piState Incomplete)
+            pi' <- readTVarIO tvarPI
+            return (hash, tvarPI)
 
 readAndVerifyPiece :: ByteString -> PieceInfo -> IO (Maybe ByteString)
 readAndVerifyPiece hash pi = do
