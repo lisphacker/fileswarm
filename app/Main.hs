@@ -8,7 +8,7 @@ import Control.Lens (view)
 import Control.Monad
 import Control.Concurrent (forkIO)
 import Control.Concurrent.Async (async, wait)
-import Control.Concurrent.STM.TVar
+import Control.Concurrent.STM
 import qualified Data.Map.Strict as M
 import Data.Maybe
 
@@ -37,17 +37,19 @@ run opts = do
     Right metaInfo -> do
       torrentState <- newTorrentState (optPort opts) metaInfo
       updateTorrentStateFromTracker torrentState
-      checkPieces torrentState
+      --checkPieces torrentState
       
       --peers <- readTVarIO (view tsPeers torrentState)
       --ioCfg <- readTVarIO (view tsIOConfig torrentState)
       --putStrLn $ ((show peers) :: Text)
       --putStrLn $ ((show $ fmap _piState $ M.elems $ _ioPiece2FileMap ioCfg) :: Text)
 
-      spawnPeerClientThreads torrentState
+      pioReqChan <- newTQueueIO
+
+      spawnPeerClientThreads torrentState pioReqChan
       
-      peerServerListenThread <- async (peerServerListenThread torrentState)
-      statusThread <- async (statusThread torrentState)
+      peerServerListenThread <- async (peerServerListenThread torrentState pioReqChan)
+      statusThread <- async (statusThread torrentState pioReqChan)
       void $ wait peerServerListenThread
       void $ wait statusThread
       return ()
@@ -61,13 +63,9 @@ main = execParser opts >>= run
           <$> pack <$> argument str ( metavar "TORRENT-FILE" <> help "Torrent file")
           <*> argument auto (metavar "PORT" <> help "Port to listen to" <> showDefault <> value 6881)
 
-spawnPeerClientThreads :: TorrentState -> IO ()
-spawnPeerClientThreads state = do
-  let ioCfg = _tsIOConfig state
-  let h = fromJust $ head $ M.keys $ _ioPiece2FileMap ioCfg
-  forM_ ((M.assocs . _ioPiece2FileMap) ioCfg) $ spawnPeerClientThread h
-    where spawnPeerClientThread h (hash, tvarPI) = do pi <- readTVarIO tvarPI
-                                                      return $ case _piState pi of
-                                                        Incomplete -> void $ async (peerClientThread hash state)
-                                                        _          -> return ()
-    
+spawnPeerClientThreads :: TorrentState -> PieceIORequestChannel -> IO ()
+spawnPeerClientThreads state pioReqChan = do
+  pioResChan <- newTQueueIO
+  pieces <- listIncompletePieces pioReqChan pioResChan
+  forM_ pieces spawnPeerClientThread 
+    where spawnPeerClientThread h = async (peerClientThread h state pioReqChan)

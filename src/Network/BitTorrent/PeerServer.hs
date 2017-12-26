@@ -20,9 +20,10 @@ import Control.Concurrent
 import Control.Concurrent.Async (async, wait)
 
 import Network.BitTorrent.Types
+import Network.BitTorrent.FileIO
 
-peerServerListenThread :: TorrentState -> IO ()
-peerServerListenThread state = do
+peerServerListenThread :: TorrentState -> PieceIORequestChannel -> IO ()
+peerServerListenThread state pioReqChan = do
   s <- openListeningSocket $ _tsPort state
   putStrLn $ ("Started peer server" :: Text)
   loop s

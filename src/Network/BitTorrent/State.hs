@@ -33,5 +33,5 @@ newTorrentState port mi = do
   uuid <- makeUUID
   peerState <- newPeerState
   let info = miInfo mi
-  ioCfg <- initFiles (miPieceLength info) (miPieces info) (miFileInfo info) 
-  return $ TorrentState (miAnnounce mi) (miInfoHash mi) (miPieceLength info) uuid "" port peerState "" 0 0 0 ioCfg
+  --ioCfg <- initFiles (miPieceLength info) (miPieces info) (miFileInfo info) 
+  return $ TorrentState (miAnnounce mi) (miInfoHash mi) (miPieceLength info) uuid "" port peerState "" 0 0 0 --ioCfg

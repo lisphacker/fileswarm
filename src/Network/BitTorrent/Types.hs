@@ -17,7 +17,7 @@ module Network.BitTorrent.Types
   , Peer(..)
   , File(..)
   , fileHandle
-  , fileLock
+  --, fileLock
   , fileLen
   , FileSection(..)
   , fsFile
@@ -39,11 +39,12 @@ module Network.BitTorrent.Types
   , tsDownloaded
   , tsUploaded
   , tsLeft
-  , tsIOConfig ) where
+  --, tsIOConfig
+  ) where
 
 import Protolude
 import Network.Socket
-import Control.Concurrent.STM.TVar
+import Control.Concurrent.STM
 import Control.Lens as X (view, set)
 import Control.Lens hiding (element)
 import Control.Concurrent.Extra (Lock)
@@ -72,14 +73,15 @@ makeLenses ''FileSection
 data PieceState = Incomplete | Downloading | Complete
   deriving (Eq, Show)
 
-data PieceInfo = PieceInfo { _piDownloaded :: Int64
+data PieceInfo = PieceInfo { _piHash       :: ByteString
+                           , _piDownloaded :: Int64
                            , _piState      :: PieceState
                            , _piSections   :: [FileSection]
                            } deriving (Show)
 makeLenses ''PieceInfo
 
 data IOConfig = IOConfig { _ioFiles :: [File]
-                         , _ioPiece2FileMap :: Map ByteString (TVar PieceInfo)
+                         , _ioPiece2FileMap :: Map ByteString PieceInfo
                          } 
 makeLenses ''IOConfig
 
@@ -94,6 +96,10 @@ data TorrentState = TorrentState { _tsAnnounceURL :: Text
                                  , _tsUploaded    :: Int64
                                  , _tsDownloaded  :: Int64
                                  , _tsLeft        :: Int64
-                                 , _tsIOConfig    :: IOConfig
+                                 --, _tsIOConfig    :: IOConfig
                                  }
 makeLenses ''TorrentState
+
+
+
+

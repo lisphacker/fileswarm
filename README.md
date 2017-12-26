@@ -9,6 +9,9 @@ This code is in a very early developmental state and is quite unusable
 
 ## Log
 
+### 2017-12-26
+- Refactoring code to make dedicated FileIO thread controlled over messages (Not working yet)
+
 ### 2017-12-21
 - Added dummy piece client.
 - Need to fix locks. STM is not useful for locks connected to IO
