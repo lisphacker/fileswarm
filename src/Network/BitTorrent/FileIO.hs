@@ -22,7 +22,7 @@ module Network.BitTorrent.FileIO
   , getPieceState
   , getState
   , setPieceState
-  , pieceIOThread ) where
+  , fileIOThread ) where
   
 
 import Protolude hiding (concat, pi)
@@ -44,64 +44,94 @@ import Network.BitTorrent.Types
 data PieceIOError = SUCCESS
                   | WRITE_TO_COMPLETE_PIECE
                   | ERROR
+                  deriving (Eq)
 
 type PieceIORequestChannel  = TQueue PieceIORequest                  
 type PieceIOResponseChannel = TQueue PieceIOResponse
                   
-data PieceIORequest = PieceIOReadRequest { _pioRdReqHash           :: ByteString
-                                         , _pioRdReqResChannel     :: TQueue PieceIOResponse
-                                         }
-                    | PieceIOWriteRequest { _pioWrReqHash          :: ByteString
-                                          , _pioWrReqData          :: ByteString
-                                          , _pioWrReqResChannel    :: TQueue PieceIOResponse
-                                          }
-                    | PieceIOListRequest { _pioListReqResChannel   :: TQueue PieceIOResponse }
-                    | PieceIOStat1Request { _pioStat1ReqHash       :: ByteString
-                                          , _pioStat1ReqResChannel :: TQueue PieceIOResponse
-                                          }
-                    | PieceIOStat2Request { _pioStat2ReqResChannel :: TQueue PieceIOResponse
-                                          }
+data PieceIORequestData = PieceIOReadRequest { _pioRdReqHash     :: ByteString }
+                        | PieceIOWriteRequest { _pioWrReqHash    :: ByteString
+                                              , _pioWrReqData    :: ByteString
+                                              }
+                        | PieceIOListRequest 
+                        | PieceIOGetStateRequest { _pioGetStateReqHash :: ByteString }
+                        | PieceIOSetStateRequest { _pioSetStateReqHash :: ByteString
+                                                 , _pioSetStateReqState :: PieceState }
+                        | PieceIOStatusRequest 
 
+data PieceIORequest = PieceIORequest { _pioReqResChannel :: PieceIOResponseChannel
+                                     , _pioReqData       :: PieceIORequestData
+                                     }
+                                     
 data PieceIOResponse = PieceIOReadResponse { _pioWrResError        :: PieceIOError
                                            , _pioWrResData         :: Maybe ByteString
                                            }
                      | PieceIOWriteResponse {  _pioWrResError      :: PieceIOError
                                             }
                      | PieceIOListResponse { _pioListResHashes     :: [ByteString] }
-                     | PieceIOStat1Response { _pioStat1State       :: PieceState }
-                     | PieceIOStat2Response { _pioStat2Incomplete  :: Int
-                                            , _pioStat2Downloading :: Int
-                                            , _pioStat2Complete    :: Int
+                     | PieceIOGetStateResponse { _pioGetStateResState  :: PieceState }
+                     | PieceIOSetStateResponse 
+                     | PieceIOStatusResponse { _pioStatusIncomplete  :: Int
+                                             , _pioStatusDownloading :: Int
+                                             , _pioStatusComplete    :: Int
                                             }
 
 
+readQ :: TQueue a -> IO a
+readQ q = atomically $ readTQueue q
 
+writeQ :: TQueue a -> a -> IO ()
+writeQ q v = atomically $ writeTQueue q v
 
 readPiece :: PieceIORequestChannel -> PieceIOResponseChannel -> ByteString -> IO (Maybe ByteString)
-readPiece reqChan resChan hash = undefined
-
-writePiece :: PieceIORequestChannel -> PieceIOResponseChannel -> ByteString -> ByteString -> IO (Maybe ByteString)
-writePiece reqChan resChan hash pieceData = undefined
+readPiece reqChan resChan hash = do
+  writeQ reqChan $ PieceIORequest resChan $ PieceIOReadRequest hash
+  res <- readQ resChan
+  return $ case res of
+             PieceIOReadResponse err pieceData -> if err == SUCCESS then pieceData else Nothing
+             _                                 -> Nothing
+      
+writePiece :: PieceIORequestChannel -> PieceIOResponseChannel -> ByteString -> ByteString -> IO ()
+writePiece reqChan resChan hash pieceData = do
+  writeQ reqChan $ PieceIORequest resChan $ PieceIOWriteRequest hash pieceData
+  void $ readQ resChan
 
 listIncompletePieces :: PieceIORequestChannel -> PieceIOResponseChannel -> IO ([ByteString])
-listIncompletePieces reqChan resChan = undefined
+listIncompletePieces reqChan resChan = do
+  writeQ reqChan $ PieceIORequest resChan $ PieceIOListRequest
+  res <- readQ resChan
+  return $ case res of
+             PieceIOListResponse l -> l
+             _                     -> []
 
 getPieceState :: PieceIORequestChannel -> PieceIOResponseChannel -> ByteString -> IO (PieceState)
-getPieceState reqChan resChan hash = undefined
+getPieceState reqChan resChan hash = do
+  writeQ reqChan $ PieceIORequest resChan $ PieceIOGetStateRequest hash
+  res <- readQ resChan
+  return $ case res of
+             PieceIOGetStateResponse s -> s
+             _                      -> Incomplete
 
 setPieceState :: PieceIORequestChannel -> PieceIOResponseChannel -> ByteString -> PieceState -> IO ()
-setPieceState reqChan resChan hash pieceState = undefined
+setPieceState reqChan resChan hash pieceState = do
+  writeQ reqChan $ PieceIORequest resChan $ PieceIOSetStateRequest hash pieceState
+  void $ readQ resChan
 
 getState :: PieceIORequestChannel -> PieceIOResponseChannel -> IO (Int, Int, Int)
 getState reqChan resChan = undefined
 
-pieceIOThread :: Int64 -> [ByteString] -> FileInfo -> IO ()
-pieceIOThread pieceSize pieces fileInfo = do
+fileIOThread :: Int64 -> [ByteString] -> FileInfo -> PieceIORequestChannel -> IO ()
+fileIOThread pieceSize pieces fileInfo pioReqChan = do
   ioCfgRef <- initFiles pieceSize pieces fileInfo >>= newIORef
   checkPieces ioCfgRef
   forever $ do
     ioCfg <- readIORef ioCfgRef
-    return ()
+    req <- readQ pioReqChan
+    return $ processRequest req
+      where processRequest (PieceIORequest pioResChan pioReqData) = do
+              res <- processRequest' pioReqData
+              writeQ pioResChan res
+            processRequest' = undefined
     
 
 
