@@ -231,9 +231,9 @@ openTFile fn len = do
 checkPieces :: IORef IOConfig -> IO ()
 checkPieces ioCfgRef = do
   ioCfg <- readIORef ioCfgRef
-  let p2fmap = _ioPiece2FileMap ioCfg
+  let p2fmap = ioCfg ^. ioPiece2FileMap
   p2fmap' <- mapM checkPiece p2fmap
-  writeIORef ioCfgRef (set ioPiece2FileMap p2fmap' ioCfg)
+  writeIORef ioCfgRef $ ioPiece2FileMap .~ p2fmap' $ ioCfg
   return ()
     where checkPiece pi = do
             maybeString <- readAndVerifyPieceInt pi
@@ -256,9 +256,9 @@ readPieceInt (PieceInfo _ _ _ sections) = do
   return $ BS.concat byteStrings
     where readSection :: FileSection -> IO (ByteString)
           readSection section = do
-            let h = view (fsFile . fileHandle) section
+            let h = section ^. fsFile . fileHandle
             hSeek h AbsoluteSeek (toInteger $ view fsOffset section)
-            BS.hGet (view (fsFile . fileHandle) section) (fromInteger $ toInteger $ view fsLen section)
+            BS.hGet h (fromInteger $ toInteger $ view fsLen section)
 
 writePieceInt :: PieceInfo -> ByteString -> IO ()
 writePieceInt (PieceInfo _ _ _ sections) piece = do
@@ -267,7 +267,7 @@ writePieceInt (PieceInfo _ _ _ sections) piece = do
     where writeSection :: ByteString -> FileSection -> IO (ByteString)
           writeSection piece section = do
             let (curr, rest) = BS.splitAt (fromInteger $ toInteger $ view fsLen section) piece
-                h = view (fsFile . fileHandle) section
+                h = section ^. fsFile . fileHandle
             hSeek h AbsoluteSeek (toInteger $ view fsOffset section)
-            BS.hPut (view (fsFile . fileHandle) section) curr
+            BS.hPut h curr
             return rest
