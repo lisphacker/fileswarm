@@ -9,6 +9,9 @@ This code is in a very early developmental state and is quite unusable
 
 ## Log
 
+### 2017-12-27
+- FileIO messaging and thread beginning to work
+
 ### 2017-12-26
 - Refactoring code to make dedicated FileIO thread controlled over messages (Not working yet)
 

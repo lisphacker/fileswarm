@@ -121,7 +121,7 @@ getPieceState reqChan resChan hash = do
   res <- readQ resChan
   return $ case res of
              PieceIOGetStateResponse s -> s
-             _                      -> Incomplete
+             _                         -> Incomplete
 
 setPieceState :: PieceIORequestChannel -> PieceIOResponseChannel -> ByteString -> PieceState -> IO ()
 setPieceState reqChan resChan hash pieceState = do
@@ -148,10 +148,13 @@ fileIOThread metaInfo pioReqChan = do
   forever $ do
     void $ readQ pioReqChan >>= processRequest ioCfgRef
       where processRequest ioCfgRef (PieceIORequest pioResChan pioReqData) = do
-              putStrLn $ show pioReqData
-              traceIO ("1" :: Text) ("2" :: Text)
+              traceShowM ("Processing req" :: Text)
+              traceShowM pioReqData
               ioCfg <- readIORef ioCfgRef
+              traceShowM "iocfg"
+              
               (res,ioCfg') <- processRequest' ioCfg pioReqData
+              traceShowM res
               writeIORef ioCfgRef ioCfg'
               writeQ pioResChan res
             processRequest' ioCfg (PieceIOReadRequest h) = do
@@ -166,6 +169,19 @@ fileIOThread metaInfo pioReqChan = do
               let hashes = foldMap f $ ioCfg ^. ioPiece2FileMap
               return (PieceIOListResponse hashes, ioCfg)
                 where f (PieceInfo h _ s _) = if s == state then [h] else []
+            processRequest' ioCfg (PieceIOGetStateRequest h) = do
+              let pi = lkup h ioCfg
+              return $ (PieceIOGetStateResponse $ pi ^. piState, ioCfg)
+            processRequest' ioCfg (PieceIOSetStateRequest h s) = do
+              let pi = lkup h ioCfg
+              return $ (PieceIOSetStateResponse, ioPiece2FileMap %~ M.insert h pi $ ioCfg)
+            processRequest' ioCfg (PieceIOStatusRequest) = do
+              let (i,d,c) = foldr f (0,0,0) $ ioCfg ^. ioPiece2FileMap
+              return (PieceIOStatusResponse i d c, ioCfg)
+                where f (PieceInfo _ _ s _) (i,d,c) = case s of
+                                                        Incomplete  -> (i+1,d,c)
+                                                        Downloading -> (i,d+1,c)
+                                                        Complete    -> (i,d,c+1)
               
 
 
