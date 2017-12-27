@@ -24,6 +24,7 @@ import Network.BitTorrent.FileIO
 
 peerClientThread :: ByteString -> TorrentState -> PieceIORequestChannel -> IO ()
 peerClientThread hash state pioReqChan = do
+  putStrLn ("Starting peer client thread" :: Text)
   pioResChan <- newTQueueIO
   setPieceState pioReqChan pioResChan hash Downloading
 

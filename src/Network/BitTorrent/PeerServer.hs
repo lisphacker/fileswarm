@@ -25,7 +25,7 @@ import Network.BitTorrent.FileIO
 peerServerListenThread :: TorrentState -> PieceIORequestChannel -> IO ()
 peerServerListenThread state pioReqChan = do
   s <- openListeningSocket $ _tsPort state
-  putStrLn $ ("Started peer server" :: Text)
+  putStrLn ("Starting peer server thread" :: Text)
   loop s
   return ()
     where loop s = do

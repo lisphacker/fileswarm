@@ -140,21 +140,13 @@ fileIOThread :: MetaInfo -> PieceIORequestChannel -> IO ()
 fileIOThread metaInfo pioReqChan = do
   let info = miInfo metaInfo
   putStrLn "Starting FileIO Thread"
-  putStrLn "FIO 1"
   ioCfgRef <- initFiles (miPieceLength info) (miPieces info) (miFileInfo info) >>= newIORef
-  putStrLn "FIO 2"
   checkPieces ioCfgRef
-  putStrLn "FIO 3"
   forever $ do
     void $ readQ pioReqChan >>= processRequest ioCfgRef
       where processRequest ioCfgRef (PieceIORequest pioResChan pioReqData) = do
-              traceShowM ("Processing req" :: Text)
-              traceShowM pioReqData
               ioCfg <- readIORef ioCfgRef
-              traceShowM "iocfg"
-              
               (res,ioCfg') <- processRequest' ioCfg pioReqData
-              traceShowM res
               writeIORef ioCfgRef ioCfg'
               writeQ pioResChan res
             processRequest' ioCfg (PieceIOReadRequest h) = do
@@ -173,8 +165,9 @@ fileIOThread metaInfo pioReqChan = do
               let pi = lkup h ioCfg
               return $ (PieceIOGetStateResponse $ pi ^. piState, ioCfg)
             processRequest' ioCfg (PieceIOSetStateRequest h s) = do
+              traceM "SetState"
               let pi = lkup h ioCfg
-              return $ (PieceIOSetStateResponse, ioPiece2FileMap %~ M.insert h pi $ ioCfg)
+              return $ (PieceIOSetStateResponse, ioPiece2FileMap %~ M.insert h (piState .~ s $ pi) $ ioCfg)
             processRequest' ioCfg (PieceIOStatusRequest) = do
               let (i,d,c) = foldr f (0,0,0) $ ioCfg ^. ioPiece2FileMap
               return (PieceIOStatusResponse i d c, ioCfg)

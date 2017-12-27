@@ -42,7 +42,7 @@ run opts = do
 
       fioThread <- async (fileIOThread metaInfo pioReqChan)
       
-      --spawnPeerClientThreads torrentState pioReqChan
+      spawnPeerClientThreads torrentState pioReqChan
       peerServerListenThread <- async (peerServerListenThread torrentState pioReqChan)
       statusThread <- async (statusThread torrentState pioReqChan)
       
