@@ -25,16 +25,18 @@ module Network.BitTorrent.FileIO
   , fileIOThread ) where
   
 
-import Protolude hiding (concat, pi)
+import Protolude hiding (concat, pi, putStrLn, show)
 import System.IO
 import System.Directory
 import Data.Text (unpack)
 import Data.Maybe
 import Data.IORef
 import Control.Concurrent.STM
+import Control.Lens
 import qualified Data.Map.Strict as M
 import qualified Data.ByteString as BS
 import Control.Concurrent.Extra (Lock, newLock, withLock)
+import GHC.Show (Show(..)) 
 
 import Data.MetaInfo
 import Data.Crypto
@@ -44,27 +46,32 @@ import Network.BitTorrent.Types
 data PieceIOError = SUCCESS
                   | WRITE_TO_COMPLETE_PIECE
                   | ERROR
-                  deriving (Eq)
+                  deriving (Eq, Show)
 
 type PieceIORequestChannel  = TQueue PieceIORequest                  
 type PieceIOResponseChannel = TQueue PieceIOResponse
+
+instance Show (TQueue a) where
+  show _ = "<tq>"
                   
 data PieceIORequestData = PieceIOReadRequest { _pioRdReqHash     :: ByteString }
                         | PieceIOWriteRequest { _pioWrReqHash    :: ByteString
                                               , _pioWrReqData    :: ByteString
                                               }
-                        | PieceIOListRequest 
+                        | PieceIOListRequest { _pioListReqState :: PieceState }
                         | PieceIOGetStateRequest { _pioGetStateReqHash :: ByteString }
                         | PieceIOSetStateRequest { _pioSetStateReqHash :: ByteString
                                                  , _pioSetStateReqState :: PieceState }
-                        | PieceIOStatusRequest 
+                        | PieceIOStatusRequest
+                        deriving (Show)
 
 data PieceIORequest = PieceIORequest { _pioReqResChannel :: PieceIOResponseChannel
                                      , _pioReqData       :: PieceIORequestData
                                      }
+                    deriving (Show)
                                      
-data PieceIOResponse = PieceIOReadResponse { _pioWrResError        :: PieceIOError
-                                           , _pioWrResData         :: Maybe ByteString
+data PieceIOResponse = PieceIOReadResponse { _pioRdResError        :: PieceIOError
+                                           , _pioRdResData         :: Maybe ByteString
                                            }
                      | PieceIOWriteResponse {  _pioWrResError      :: PieceIOError
                                             }
@@ -75,6 +82,7 @@ data PieceIOResponse = PieceIOReadResponse { _pioWrResError        :: PieceIOErr
                                              , _pioStatusDownloading :: Int
                                              , _pioStatusComplete    :: Int
                                             }
+                     deriving (Show)
 
 
 readQ :: TQueue a -> IO a
@@ -97,8 +105,11 @@ writePiece reqChan resChan hash pieceData = do
   void $ readQ resChan
 
 listIncompletePieces :: PieceIORequestChannel -> PieceIOResponseChannel -> IO ([ByteString])
-listIncompletePieces reqChan resChan = do
-  writeQ reqChan $ PieceIORequest resChan $ PieceIOListRequest
+listIncompletePieces reqChan resChan = listPieces reqChan resChan Incomplete
+  
+listPieces :: PieceIORequestChannel -> PieceIOResponseChannel -> PieceState -> IO ([ByteString])
+listPieces reqChan resChan state = do
+  writeQ reqChan $ PieceIORequest resChan $ PieceIOListRequest state
   res <- readQ resChan
   return $ case res of
              PieceIOListResponse l -> l
@@ -118,23 +129,44 @@ setPieceState reqChan resChan hash pieceState = do
   void $ readQ resChan
 
 getState :: PieceIORequestChannel -> PieceIOResponseChannel -> IO (Int, Int, Int)
-getState reqChan resChan = undefined
+getState reqChan resChan = do
+  writeQ reqChan $ PieceIORequest resChan $ PieceIOStatusRequest 
+  res <- readQ resChan
+  return $ case res of
+             PieceIOStatusResponse i d c -> (i,d,c)
+             _                           -> (-1, -1, -1)
 
-fileIOThread :: Int64 -> [ByteString] -> FileInfo -> PieceIORequestChannel -> IO ()
-fileIOThread pieceSize pieces fileInfo pioReqChan = do
-  ioCfgRef <- initFiles pieceSize pieces fileInfo >>= newIORef
+fileIOThread :: MetaInfo -> PieceIORequestChannel -> IO ()
+fileIOThread metaInfo pioReqChan = do
+  let info = miInfo metaInfo
+  putStrLn "Starting FileIO Thread"
+  putStrLn "FIO 1"
+  ioCfgRef <- initFiles (miPieceLength info) (miPieces info) (miFileInfo info) >>= newIORef
+  putStrLn "FIO 2"
   checkPieces ioCfgRef
+  putStrLn "FIO 3"
   forever $ do
-    ioCfg <- readIORef ioCfgRef
-    req <- readQ pioReqChan
-    return $ processRequest req
-      where processRequest (PieceIORequest pioResChan pioReqData) = do
-              res <- processRequest' pioReqData
+    void $ readQ pioReqChan >>= processRequest ioCfgRef
+      where processRequest ioCfgRef (PieceIORequest pioResChan pioReqData) = do
+              putStrLn $ show pioReqData
+              traceIO ("1" :: Text) ("2" :: Text)
+              ioCfg <- readIORef ioCfgRef
+              (res,ioCfg') <- processRequest' ioCfg pioReqData
+              writeIORef ioCfgRef ioCfg'
               writeQ pioResChan res
-            processRequest' = undefined
-    
-
-
+            processRequest' ioCfg (PieceIOReadRequest h) = do
+              maybeRes <- readAndVerifyPieceInt $ lkup h ioCfg
+              return $ case maybeRes of
+                         Just _  -> (PieceIOReadResponse SUCCESS maybeRes, ioCfg)
+                         Nothing -> (PieceIOReadResponse ERROR   Nothing,  ioCfg)
+            processRequest' ioCfg (PieceIOWriteRequest h d) = do
+              writePieceInt (lkup h ioCfg) d
+              return (PieceIOWriteResponse SUCCESS, ioCfg)
+            processRequest' ioCfg (PieceIOListRequest state) = do
+              let hashes = foldMap f $ ioCfg ^. ioPiece2FileMap
+              return (PieceIOListResponse hashes, ioCfg)
+                where f (PieceInfo h _ s _) = if s == state then [h] else []
+              
 
 
   
@@ -193,6 +225,9 @@ checkPieces ioCfgRef = do
                        Just _  -> set piState Complete pi
                        Nothing -> set piState Incomplete pi
 
+
+lkup :: ByteString -> IOConfig -> PieceInfo
+lkup h ioCfg = fromJust $ M.lookup h (_ioPiece2FileMap ioCfg)
 
 readAndVerifyPieceInt :: PieceInfo -> IO (Maybe ByteString)
 readAndVerifyPieceInt pi = do

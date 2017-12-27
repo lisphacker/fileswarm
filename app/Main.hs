@@ -37,20 +37,17 @@ run opts = do
     Right metaInfo -> do
       torrentState <- newTorrentState (optPort opts) metaInfo
       updateTorrentStateFromTracker torrentState
-      --checkPieces torrentState
-      
-      --peers <- readTVarIO (view tsPeers torrentState)
-      --ioCfg <- readTVarIO (view tsIOConfig torrentState)
-      --putStrLn $ ((show peers) :: Text)
-      --putStrLn $ ((show $ fmap _piState $ M.elems $ _ioPiece2FileMap ioCfg) :: Text)
 
       pioReqChan <- newTQueueIO
 
-      spawnPeerClientThreads torrentState pioReqChan
+      fioThread <- async (fileIOThread metaInfo pioReqChan)
       
+      --spawnPeerClientThreads torrentState pioReqChan
       peerServerListenThread <- async (peerServerListenThread torrentState pioReqChan)
       statusThread <- async (statusThread torrentState pioReqChan)
+      
       void $ wait peerServerListenThread
+      void $ wait fioThread
       void $ wait statusThread
       return ()
   return ()
