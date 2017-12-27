@@ -84,6 +84,28 @@ data PieceIOResponse = PieceIOReadResponse { _pioRdResError        :: PieceIOErr
                                             }
                      deriving (Show)
 
+data File = File { _fileHandle :: Handle
+                 , _fileLen    :: Int64
+                 } deriving (Show)
+makeLenses ''File
+
+data FileSection = FileSection { _fsFile   :: File
+                               , _fsOffset :: Int64
+                               , _fsLen    :: Int64
+                               } deriving (Show)
+makeLenses ''FileSection
+
+data PieceInfo = PieceInfo { _piHash       :: ByteString
+                           , _piDownloaded :: Int64
+                           , _piState      :: PieceState
+                           , _piSections   :: [FileSection]
+                           } deriving (Show)
+makeLenses ''PieceInfo
+
+data FileIOState = FileIOState { _ioFiles :: [File]
+                         , _ioPiece2FileMap :: Map ByteString PieceInfo
+                         } 
+makeLenses ''FileIOState
 
 readQ :: TQueue a -> IO a
 readQ q = atomically $ readTQueue q
@@ -140,37 +162,37 @@ fileIOThread :: MetaInfo -> PieceIORequestChannel -> IO ()
 fileIOThread metaInfo pioReqChan = do
   let info = miInfo metaInfo
   putStrLn "Starting FileIO Thread"
-  ioCfgRef <- initFiles (miPieceLength info) (miPieces info) (miFileInfo info) >>= newIORef
-  checkPieces ioCfgRef
+  ioStateRef <- initFiles (miPieceLength info) (miPieces info) (miFileInfo info) >>= newIORef
+  checkPieces ioStateRef
   forever $ do
-    void $ readQ pioReqChan >>= processRequest ioCfgRef
-      where processRequest ioCfgRef (PieceIORequest pioResChan pioReqData) = do
-              ioCfg <- readIORef ioCfgRef
-              (res,ioCfg') <- processRequest' ioCfg pioReqData
-              writeIORef ioCfgRef ioCfg'
+    void $ readQ pioReqChan >>= processRequest ioStateRef
+      where processRequest ioStateRef (PieceIORequest pioResChan pioReqData) = do
+              ioState <- readIORef ioStateRef
+              (res,ioState') <- processRequest' ioState pioReqData
+              writeIORef ioStateRef ioState'
               writeQ pioResChan res
-            processRequest' ioCfg (PieceIOReadRequest h) = do
-              maybeRes <- readAndVerifyPieceInt $ lkup h ioCfg
+            processRequest' ioState (PieceIOReadRequest h) = do
+              maybeRes <- readAndVerifyPieceInt $ lkup h ioState
               return $ case maybeRes of
-                         Just _  -> (PieceIOReadResponse SUCCESS maybeRes, ioCfg)
-                         Nothing -> (PieceIOReadResponse ERROR   Nothing,  ioCfg)
-            processRequest' ioCfg (PieceIOWriteRequest h d) = do
-              writePieceInt (lkup h ioCfg) d
-              return (PieceIOWriteResponse SUCCESS, ioCfg)
-            processRequest' ioCfg (PieceIOListRequest state) = do
-              let hashes = foldMap f $ ioCfg ^. ioPiece2FileMap
-              return (PieceIOListResponse hashes, ioCfg)
+                         Just _  -> (PieceIOReadResponse SUCCESS maybeRes, ioState)
+                         Nothing -> (PieceIOReadResponse ERROR   Nothing,  ioState)
+            processRequest' ioState (PieceIOWriteRequest h d) = do
+              writePieceInt (lkup h ioState) d
+              return (PieceIOWriteResponse SUCCESS, ioState)
+            processRequest' ioState (PieceIOListRequest state) = do
+              let hashes = foldMap f $ ioState ^. ioPiece2FileMap
+              return (PieceIOListResponse hashes, ioState)
                 where f (PieceInfo h _ s _) = if s == state then [h] else []
-            processRequest' ioCfg (PieceIOGetStateRequest h) = do
-              let pi = lkup h ioCfg
-              return $ (PieceIOGetStateResponse $ pi ^. piState, ioCfg)
-            processRequest' ioCfg (PieceIOSetStateRequest h s) = do
+            processRequest' ioState (PieceIOGetStateRequest h) = do
+              let pi = lkup h ioState
+              return $ (PieceIOGetStateResponse $ pi ^. piState, ioState)
+            processRequest' ioState (PieceIOSetStateRequest h s) = do
               traceM "SetState"
-              let pi = lkup h ioCfg
-              return $ (PieceIOSetStateResponse, ioPiece2FileMap %~ M.insert h (piState .~ s $ pi) $ ioCfg)
-            processRequest' ioCfg (PieceIOStatusRequest) = do
-              let (i,d,c) = foldr f (0,0,0) $ ioCfg ^. ioPiece2FileMap
-              return (PieceIOStatusResponse i d c, ioCfg)
+              let pi = lkup h ioState
+              return $ (PieceIOSetStateResponse, ioPiece2FileMap %~ M.insert h (piState .~ s $ pi) $ ioState)
+            processRequest' ioState (PieceIOStatusRequest) = do
+              let (i,d,c) = foldr f (0,0,0) $ ioState ^. ioPiece2FileMap
+              return (PieceIOStatusResponse i d c, ioState)
                 where f (PieceInfo _ _ s _) (i,d,c) = case s of
                                                         Incomplete  -> (i+1,d,c)
                                                         Downloading -> (i,d+1,c)
@@ -181,22 +203,22 @@ fileIOThread metaInfo pioReqChan = do
   
 --------------------------------------------------------------------------------
 
-initFiles :: Int64 -> [ByteString] -> FileInfo -> IO (IOConfig)
+initFiles :: Int64 -> [ByteString] -> FileInfo -> IO (FileIOState)
 initFiles pieceSize pieces (SingleFileInfo fileName (FileProp len _ _)) = do
   file <- openTFile (unpack fileName) len
-  return $ IOConfig [file] $ makePiece2FileMap file
+  return $ FileIOState [file] $ makePiece2FileMap file
     where makePiece2FileMap file = foldl fn M.empty $ zip pieces [0,pieceSize..]
             where fn m (h, o) = M.insert h (mkpi h o)  m
                   mkpi h o = PieceInfo h 0 Incomplete [FileSection file o pieceSize]
 initFiles pieceSize pieces (MultiFileInfo dirName fileProps) = do
   files <- mapM openDirFile fileProps
   let m = makePiece2FileMap pieces files 0 M.empty
-  return $ IOConfig files m
+  return $ FileIOState files m
     where openDirFile (FileProp len _ fileName) = openTDirFile dirName (fromJust fileName) len
           makePiece2FileMap :: [ByteString] -> [File] -> Int64 -> Map ByteString PieceInfo -> Map ByteString PieceInfo
           makePiece2FileMap [] _ _ m = m
           makePiece2FileMap _ [] _ m = m
-          makePiece2FileMap (p:ps) ((f@(File _ _ len):fs)) offset m
+          makePiece2FileMap (p:ps) ((f@(File _ len):fs)) offset m
             | offset + pieceSize < len = let m' =insertPI p m f offset pieceSize
                                          in makePiece2FileMap ps (f:fs) (offset + pieceSize) m'
             | otherwise                = let m' = insertPI p m f offset (len - offset)
@@ -218,15 +240,14 @@ openTFile :: FilePath -> Int64 -> IO (File)
 openTFile fn len = do
   h <- openFile fn ReadWriteMode
   hSetFileSize h $ toInteger len
-  l <- newLock
-  return $ File h l len
+  return $ File h len
 
-checkPieces :: IORef IOConfig -> IO ()
-checkPieces ioCfgRef = do
-  ioCfg <- readIORef ioCfgRef
-  let p2fmap = ioCfg ^. ioPiece2FileMap
+checkPieces :: IORef FileIOState -> IO ()
+checkPieces ioStateRef = do
+  ioState <- readIORef ioStateRef
+  let p2fmap = ioState ^. ioPiece2FileMap
   p2fmap' <- mapM checkPiece p2fmap
-  writeIORef ioCfgRef $ ioPiece2FileMap .~ p2fmap' $ ioCfg
+  writeIORef ioStateRef $ ioPiece2FileMap .~ p2fmap' $ ioState
   return ()
     where checkPiece pi = do
             maybeString <- readAndVerifyPieceInt pi
@@ -235,8 +256,8 @@ checkPieces ioCfgRef = do
                        Nothing -> set piState Incomplete pi
 
 
-lkup :: ByteString -> IOConfig -> PieceInfo
-lkup h ioCfg = fromJust $ M.lookup h (_ioPiece2FileMap ioCfg)
+lkup :: ByteString -> FileIOState -> PieceInfo
+lkup h ioState = fromJust $ M.lookup h (_ioPiece2FileMap ioState)
 
 readAndVerifyPieceInt :: PieceInfo -> IO (Maybe ByteString)
 readAndVerifyPieceInt pi = do

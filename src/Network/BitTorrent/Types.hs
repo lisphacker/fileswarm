@@ -15,20 +15,7 @@ Data types
 module Network.BitTorrent.Types
   ( module X
   , Peer(..)
-  , File(..)
-  , fileHandle
-  --, fileLock
-  , fileLen
-  , FileSection(..)
-  , fsFile
-  , fsOffset
-  , fsLen
   , PieceState(..)
-  , piSections
-  , PieceInfo(..)
-  , piState
-  , IOConfig(..)
-  , ioPiece2FileMap
   , TorrentState(..)
   , tsAnnounceURL
   , tsInfoHash
@@ -39,7 +26,6 @@ module Network.BitTorrent.Types
   , tsDownloaded
   , tsUploaded
   , tsLeft
-  --, tsIOConfig
   ) where
 
 import Protolude
@@ -47,7 +33,6 @@ import Network.Socket
 import Control.Concurrent.STM
 import Control.Lens as X (view, set)
 import Control.Lens hiding (element)
-import Control.Concurrent.Extra (Lock)
 import GHC.Show (Show(..))
 
 data Peer = Peer { _peerId   :: ByteString
@@ -55,35 +40,9 @@ data Peer = Peer { _peerId   :: ByteString
                  } deriving (Show)
 makeLenses ''Peer
 
-instance Show Lock where
-  show lock = "<lock>"
-  
-data File = File { _fileHandle :: Handle
-                 , _fileLock   :: Lock
-                 , _fileLen    :: Int64
-                 } deriving (Show)
-makeLenses ''File
-
-data FileSection = FileSection { _fsFile   :: File
-                               , _fsOffset :: Int64
-                               , _fsLen    :: Int64
-                               } deriving (Show)
-makeLenses ''FileSection
-
 data PieceState = Incomplete | Downloading | Complete
   deriving (Eq, Show)
 
-data PieceInfo = PieceInfo { _piHash       :: ByteString
-                           , _piDownloaded :: Int64
-                           , _piState      :: PieceState
-                           , _piSections   :: [FileSection]
-                           } deriving (Show)
-makeLenses ''PieceInfo
-
-data IOConfig = IOConfig { _ioFiles :: [File]
-                         , _ioPiece2FileMap :: Map ByteString PieceInfo
-                         } 
-makeLenses ''IOConfig
 
 data TorrentState = TorrentState { _tsAnnounceURL :: Text
                                  , _tsInfoHash    :: ByteString
@@ -96,7 +55,6 @@ data TorrentState = TorrentState { _tsAnnounceURL :: Text
                                  , _tsUploaded    :: Int64
                                  , _tsDownloaded  :: Int64
                                  , _tsLeft        :: Int64
-                                 --, _tsIOConfig    :: IOConfig
                                  }
 makeLenses ''TorrentState
 

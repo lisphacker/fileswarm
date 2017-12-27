@@ -11,6 +11,7 @@ This code is in a very early developmental state and is quite unusable
 
 ### 2017-12-27
 - FileIO messaging and thread beginning to work
+- Moved FileIO specific types from Types to FileIO
 
 ### 2017-12-26
 - Refactoring code to make dedicated FileIO thread controlled over messages (Not working yet)
