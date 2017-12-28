@@ -20,6 +20,7 @@ library
                      , Data.MetaInfo
                      , Data.Crypto
                      , Network.BitTorrent.FileIO
+                     , Network.BitTorrent.Peer
                      , Network.BitTorrent.PeerClient
                      , Network.BitTorrent.PeerServer
                      , Network.BitTorrent.State
