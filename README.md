@@ -9,6 +9,9 @@ This code is in a very early developmental state and is quite unusable
 
 ## Log
 
+### 2018-02-27
+- Working handshake
+
 ### 2017-12-27
 - FileIO messaging and thread beginning to work
 - Moved FileIO specific types from Types to FileIO
