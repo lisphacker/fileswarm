@@ -44,6 +44,7 @@ library
                      , network
                      , old-locale
                      , protolude
+                     , random
                      , stm
                      , text
                      , time

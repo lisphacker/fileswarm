@@ -187,7 +187,6 @@ fileIOThread metaInfo pioReqChan = do
               let pi = lkup h ioState
               return $ (PieceIOGetStateResponse $ pi ^. piState, ioState)
             processRequest' ioState (PieceIOSetStateRequest h s) = do
-              traceM "SetState"
               let pi = lkup h ioState
               return $ (PieceIOSetStateResponse, ioPiece2FileMap %~ M.insert h (piState .~ s $ pi) $ ioState)
             processRequest' ioState (PieceIOStatusRequest) = do

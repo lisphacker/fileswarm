@@ -67,7 +67,7 @@ parseTrackerResponse d = let warn = decodeUtf8 $ Benc.lookupStrOpt "" "warning m
                                    w4 = (fromIntegral b4 :: Word16)
                                    w5 = (fromIntegral b5 :: Word16)
                                    hostAddr = tupleToHostAddress (b0, b1, b2, b3)
-                                   port = PortNum $ (shift w4 8) .|. w5
+                                   port = PortNum $ (shift w5 8) .|. w4
                                in Peer "" (SockAddrInet port hostAddr)
         parsePeers _                         = []
         parsePeerDict d                      = Peer "" (SockAddrInet 0 0)

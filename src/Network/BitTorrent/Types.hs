@@ -15,6 +15,8 @@ Data types
 module Network.BitTorrent.Types
   ( module X
   , Peer(..)
+  , peerId
+  , peerAddr
   , PieceState(..)
   , TorrentState(..)
   , tsAnnounceURL
@@ -57,7 +59,3 @@ data TorrentState = TorrentState { _tsAnnounceURL :: Text
                                  , _tsLeft        :: Int64
                                  }
 makeLenses ''TorrentState
-
-
-
-
