@@ -64,5 +64,5 @@ spawnPeerClientThreads :: TorrentState -> PieceIORequestChannel -> IO ()
 spawnPeerClientThreads state pioReqChan = do
   pioResChan <- newTQueueIO
   pieces <- listIncompletePieces pioReqChan pioResChan
-  forM_ pieces spawnPeerClientThread 
+  forM_ [fromJust $ head pieces] spawnPeerClientThread 
     where spawnPeerClientThread h = async (peerClientThread h state pioReqChan)

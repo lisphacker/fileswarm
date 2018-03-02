@@ -16,6 +16,7 @@ module Network.BitTorrent.FileIO
   ( PieceIOError
   , PieceIORequestChannel
   , PieceIOResponseChannel
+  , PieceIOChannelPair
   , readPiece
   , writePiece
   , listIncompletePieces
@@ -50,6 +51,7 @@ data PieceIOError = SUCCESS
 
 type PieceIORequestChannel  = TQueue PieceIORequest                  
 type PieceIOResponseChannel = TQueue PieceIOResponse
+type PieceIOChannelPair = (PieceIORequestChannel, PieceIOResponseChannel)
 
 instance Show (TQueue a) where
   show _ = "<tq>"

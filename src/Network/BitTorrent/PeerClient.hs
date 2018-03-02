@@ -25,6 +25,7 @@ import Data.ByteString.Builder
 import Data.Text hiding (head, pack)
 import Data.Text.Lazy.Builder
 
+import System.IO (hClose, hFlush, stdout)
 
 import Network.BitTorrent.Types
 import Network.BitTorrent.FileIO
@@ -33,9 +34,15 @@ import Network.BitTorrent.Peer
 peerClientThread :: ByteString -> TorrentState -> PieceIORequestChannel -> IO ()
 peerClientThread hash state pioReqChan = do
   pioResChan <- newTQueueIO
-  threadDelay 5000000
+  
+  fetchPieceFromRandomPeer hash state (pioReqChan, pioResChan)
+
+  hFlush stdout
   --setPieceState pioReqChan pioResChan hash Downloading
   
+
+fetchPieceFromRandomPeer :: ByteString -> TorrentState -> PieceIOChannelPair -> IO ()
+fetchPieceFromRandomPeer hash state (pioReqChan, pioResChan) = do
   peers <- readTVarIO $ state ^. tsPeers
   peer <- pickRandomPeer peers
   putStrLn $ ((show peer) :: Text)
@@ -45,8 +52,20 @@ peerClientThread hash state pioReqChan = do
   putStrLn ("Connected to peer" :: Text)
 
   sendHandshake h "BitTorrent protocol" (state ^. tsInfoHash) (state ^. tsPeerId)
-  recvHandshake h
+  recvPeerId <- recvHandshake h
+
+  if recvPeerId == (peer ^. peerId)
+    then processPeer hash state (pioReqChan, pioResChan) peer h
+    else do
+      hClose h
+      putStrLn ("Mismatch" :: Text)
+      fetchPieceFromRandomPeer hash state (pioReqChan, pioResChan)
   
+processPeer :: ByteString -> TorrentState -> PieceIOChannelPair -> Peer -> Handle -> IO ()
+processPeer hash state (pioReqChan, pioResChan) peer h = do
+  putStrLn ("processPeer" :: Text)
+  pwp <- readPWP h
+  putStrLn $ ((show pwp) :: Text)
   return ()
   
 connectToPeer :: SockAddr -> IO (Handle)
@@ -75,7 +94,7 @@ sendHandshake h name infoHash peerId = do
   putStrLn ("Sent handshake" :: Text)
   return ()
   
-recvHandshake :: Handle -> IO ()
+recvHandshake :: Handle -> IO (ByteString)
 recvHandshake h = do
   putStrLn ("Receiving handshake" :: Text)
   lenStr <- hGet h 1
@@ -84,6 +103,4 @@ recvHandshake h = do
   void $ hGet h 8
   infoHash <- hGet h 20
   peerId <- hGet h 20
-  putStrLn ("Received handshake" :: Text)
-  putStrLn $ (show name :: Text)
-  return ()
+  return (peerId)
