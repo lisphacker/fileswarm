@@ -6,6 +6,8 @@ I developed the code myself but have borrowed from Jakub's choice of third party
 
 This code is in a very early developmental state and is quite unusable
 
+**I've stopped working on this and have moved development [here](https://github.com/lisphacker/fileswarm2)**
+
 
 ## Log
 
